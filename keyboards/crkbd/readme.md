@@ -13,8 +13,6 @@ All recent batches of our product use the more powerful RP2040 ProMicro MCU inst
 
 
 
-
-
 # Corne Keyboard (CRKBD)
 
 Also known (incorrectly) as the `HeliDox`. 
