@@ -11,6 +11,9 @@ All recent batches of our product use the more powerful RP2040 ProMicro MCU inst
 4. `qmk doctor`
 5. Flash via QMK CLI (QMK MSYS). This allows you to connect usb to left and pimoroni trackball works properly. Double press reset button on left, `qmk flash -kb crkbd -km vialplus -bl uf2-split-left` and continue with the right for `right`. Or `qmk compile -kb crkbd -km vialplus`, double press reset button, drag the uf2 to left and right folder.
 
+### Side notes for compilation
+1. The crkbd source code is downloadable at [Google drive](https://drive.google.com/drive/u/0/folders/1ojRczvl2BmKj-fuoGMRfBVesmEOyrv73). Please backup crkbd folder before paste mine.
+
 
 
 # Corne Keyboard (CRKBD)
