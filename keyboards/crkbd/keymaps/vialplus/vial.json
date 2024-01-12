@@ -1,0 +1,298 @@
+{
+  "name": "CrkbdPLUS by XCMKB",
+  "vendorId": "0x4653",
+  "productId": "0x0001",
+  "matrix": { "rows": 8, "cols": 6 },
+  "lighting": "vialrgb",
+	"customKeycodes": [
+	{"name": "CK_ATABF",
+	 "title": "ALT TAB Forward",
+	 "shortName": "ATABF"
+	},
+	{"name": "CK_ATABR",
+	 "title": "ALT TAB Reverse",
+	 "shortName": "ATABR"
+	},
+	{"name": "CK_ATMWU",
+	 "title": "ALT MS Wheel up",
+	 "shortName": "ATMU"
+	},	
+	{"name": "CK_ATMWD",
+	 "title": "ALT MS Wheel down",
+	 "shortName": "ATMD"
+	},		
+    {"name": "CK_PO",
+    "title": "Power Options",
+    "shortName": "POWER"
+    },
+    {"name": "CK_DL",
+    "title": "Hold to move cursor super slow",
+    "shortName": "SNIP"
+    },
+	{"name": "CK_TBSRL",
+	 "title": "Hold For Trackball Scroll",
+	 "shortName": "HSCRL"
+	},
+	{"name": "CK_TBSRLT",
+	 "title": "Enable Trackball Scroll",
+	 "shortName": "SCRL"
+	},
+	{"name": "CK_TBPOIT",
+	 "title": "Enable Trackball Precision",
+	 "shortName": "POINT"
+	},		
+	{"name": "CK_TBINS",
+	 "title": "Increase Trackball Speed By 1 Level",
+	 "shortName": "TBINS"
+	},
+	{"name": "CK_TBDES",
+	 "title": "Decrease Trackball Speed By 1 Level",
+	 "shortName": "TBDES"
+	},
+    {"name": "CK_TBRST",
+    "title": "Reset Trackball Speed",
+    "shortName": "TBRST"
+   }
+],
+
+
+  "layouts": {
+	  "labels":[
+		"3x5",
+		"no flat wheel"
+			],
+      "keymap": [
+  [
+    {
+      "y": 1,
+      "x": 3.5
+    },
+    "0,3",
+    {
+      "x": 2.25
+    },
+    "0,1\n\n\n1,0\n\n\n\n\n\ne",
+    {
+      "x": 0.75
+    },
+    "1,1\n\n\n1,0\n\n\n\n\n\ne",
+    {
+      "x": 2.5
+    },
+    "4,3"
+  ],
+  [
+    {
+      "y": -0.8700000000000001,
+      "x": 2.5
+    },
+    "0,2",
+    {
+      "x": 1
+    },
+    "0,4",
+    {
+      "x": 5.5
+    },
+    "4,4",
+    {
+      "x": 1
+    },
+    "4,2"
+  ],
+  [
+    {
+      "y": -0.8799999999999999,
+      "x": 5.5
+    },
+    "0,5",
+    {
+      "x": 3.5
+    },
+    "4,5"
+  ],
+  [
+    {
+      "y": -0.8700000000000001,
+      "x": 0.5
+    },
+    "0,0\n\n\n0,0",
+    "0,1",
+    {
+      "x": 11.5
+    },
+    "4,1",
+    "4,0\n\n\n0,0"
+  ],
+  [
+    {
+      "y": -0.3799999999999999,
+      "x": 3.5
+    },
+    "1,3",
+    {
+      "x": 7.5
+    },
+    "5,3"
+  ],
+  [
+    {
+      "y": -0.8700000000000001,
+      "x": 2.5
+    },
+    "1,2",
+    {
+      "x": 1
+    },
+    "1,4",
+    {
+      "x": 5.5
+    },
+    "5,4",
+    {
+      "x": 1
+    },
+    "5,2"
+  ],
+  [
+    {
+      "y": -0.8799999999999999,
+      "x": 5.5
+    },
+    "1,5",
+    {
+      "x": 0.25
+    },
+    "0,0\n\n\n1,0\n\n\n\n\n\ne",
+    {
+      "x": 0.75
+    },
+    "1,0\n\n\n1,0\n\n\n\n\n\ne",
+    {
+      "x": 0.5
+    },
+    "5,5"
+  ],
+  [
+    {
+      "y": -0.8700000000000001,
+      "x": 0.5
+    },
+    "1,0\n\n\n0,0",
+    "1,1",
+    {
+      "x": 11.5
+    },
+    "5,1",
+    "5,0\n\n\n0,0"
+  ],
+  [
+    {
+      "y": -0.3799999999999999,
+      "x": 3.5
+    },
+    "2,3",
+    {
+      "x": 7.5
+    },
+    "6,3"
+  ],
+  [
+    {
+      "y": -0.8700000000000001,
+      "x": 2.5
+    },
+    "2,2",
+    {
+      "x": 1
+    },
+    "2,4",
+    {
+      "x": 5.5
+    },
+    "6,4",
+    {
+      "x": 1
+    },
+    "6,2"
+  ],
+  [
+    {
+      "y": -0.8799999999999999,
+      "x": 5.5
+    },
+    "2,5",
+    {
+      "x": 3.5
+    },
+    "6,5"
+  ],
+  [
+    {
+      "y": -0.8700000000000001,
+      "x": 0.5
+    },
+    "2,0\n\n\n0,0",
+    "2,1",
+    {
+      "x": 11.5
+    },
+    "6,1",
+    "6,0\n\n\n0,0"
+  ],
+  [
+    {
+      "y": -0.1299999999999999,
+      "x": 4
+    },
+    "3,3",
+    {
+      "x": 6.5
+    },
+    "7,3"
+  ],
+  [
+    {
+      "r": 15,
+      "rx": 4.5,
+      "ry": 9.1,
+      "y": -4.85,
+      "x": -0.5
+    },
+    "3,4"
+  ],
+  [
+    {
+      "r": 30,
+      "rx": 5.4,
+      "ry": 9.3,
+      "y": -5.050000000000001,
+      "x": -1.4000000000000004,
+      "h": 1.5
+    },
+    "3,5"
+  ],
+  [
+    {
+      "r": -30,
+      "rx": 11.1,
+      "y": -5.050000000000001,
+      "x": 0.40000000000000036,
+      "h": 1.5
+    },
+    "7,5"
+  ],
+  [
+    {
+      "r": -15,
+      "rx": 12,
+      "ry": 9.1,
+      "y": -4.85,
+      "x": -0.5
+    },
+    "7,4"
+  ]
+        ]
+    }
+}
+
