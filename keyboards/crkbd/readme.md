@@ -1,3 +1,20 @@
+# CornePLUS by XCMKB
+All recent batches of our product use the more powerful RP2040 ProMicro MCU instead of the old ATmega32U4. However, the QMK / VIAL Corne repo still uses the ATmega32U4 MCU to flash, and a converter is needed. Our source codes will be provided to our clients and should not be disclosed to the public. They are restricted for personal use only. Please note that flashing the board is done at your own risk, and we are not responsible for any board failure resulting from flashing.
+
+## v0.4
+![2024-01-12 11-52-50](https://github.com/superxc3/vial-qmk/assets/79617315/51ffac07-195d-454f-aedd-1a3236d725f2)
+
+## Compilation
+1. Prepare [qmk msys](https://msys.qmk.fm/).
+2. In your qmk msys `git clone -b corneplus https://github.com/superxc3/vial-qmk.git`, this is for corneplus branch.
+3. `qmk git-submodule`
+4. `qmk doctor`
+5. Flash via QMK CLI (QMK MSYS). This allows you to connect usb to left and pimoroni trackball works properly. Double press reset button on left, `qmk flash -kb crkbd -km vialplus -bl uf2-split-left` and continue with the right for `right`. Or `qmk compile -kb crkbd -km vialplus`, double press reset button, drag the uf2 to left and right folder.
+
+
+
+
+
 # Corne Keyboard (CRKBD)
 
 Also known (incorrectly) as the `HeliDox`. 
