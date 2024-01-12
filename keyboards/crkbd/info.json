@@ -1,5 +1,5 @@
 {
-    "keyboard_name": "Corne",
+    "keyboard_name": "CornePLUS by XCMKB Version 0.4 ",
     "manufacturer": "foostan",
     "url": "",
     "maintainer": "qmk",
@@ -8,19 +8,10 @@
         "pid": "0x0001",
         "device_version": "0.0.1"
     },
-    "rgb_matrix": {
-        "driver": "ws2812"
-    },
-    "features": {
-        "bootmagic": true,
-        "extrakey": true,
-        "lto": true,
-        "mousekey": true,
-        "nkro": true,
-        "oled": true
-    },
-    "build": {
-        "lto": true
+    "encoder": {
+        "rotary": [
+            {"pin_a": "B2", "pin_b": "B6", "resolution": 2}
+        ]
     },
     "matrix_pins": {
         "cols": [ "F4", "F5", "F6", "F7", "B1", "B3" ],
@@ -29,6 +20,13 @@
     "diode_direction": "COL2ROW",
     "split": {
         "enabled": true
+        "encoder": {
+            "right": {
+                "rotary": [
+                    {"pin_a": "B2", "pin_b": "B6", "resolution": 2}
+                ]
+            }
+        }
     },
     "processor": "atmega32u4",
     "community_layouts": [ "split_3x5_3", "split_3x6_3" ]
