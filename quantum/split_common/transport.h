@@ -115,6 +115,21 @@ typedef struct _split_slave_pointing_sync_t {
 } split_slave_pointing_sync_t;
 #endif // defined(POINTING_DEVICE_ENABLE) && defined(SPLIT_POINTING_ENABLE)
 
+#if defined(DIGITIZER_ENABLE) && defined(SPLIT_DIGITIZER_ENABLE)
+#    include "digitizer.h"
+typedef struct _split_digitizer_sync_t {
+    uint8_t     checksum;
+    digitizer_t report;
+} split_slave_digitizer_sync_t;
+#endif // defined(DIGITIZER_ENABLE) && defined(SPLIT_DIGITIZER_ENABLE)
+
+#if defined(DIP_SWITCH_ENABLE) && defined(SPLIT_DIP_SWITCH_ENABLE)
+typedef struct _split_slave_dip_switch_sync_t {
+    uint8_t  checksum;
+    uint32_t state;
+} split_slave_dip_switch_sync_t;
+#endif // defined(DIP_SWITCH_ENABLE) && defined(SPLIT_DIP_SWITCH_ENABLE)
+
 #if defined(HAPTIC_ENABLE) && defined(SPLIT_HAPTIC_ENABLE)
 #    include "haptic.h"
 typedef struct _split_slave_haptic_sync_t {
@@ -209,6 +224,14 @@ typedef struct _split_shared_memory_t {
 #if defined(POINTING_DEVICE_ENABLE) && defined(SPLIT_POINTING_ENABLE)
     split_slave_pointing_sync_t pointing;
 #endif // defined(POINTING_DEVICE_ENABLE) && defined(SPLIT_POINTING_ENABLE)
+
+#if defined(DIGITIZER_ENABLE) && defined(SPLIT_DIGITIZER_ENABLE)
+    split_slave_digitizer_sync_t digitizer;
+#endif // defined(DIGITIZER_ENABLE) && defined(SPLIT_DIGITIZER_ENABLE)
+
+#if defined(DIP_SWITCH_ENABLE) && defined(SPLIT_DIP_SWITCH_ENABLE)
+    split_slave_dip_switch_sync_t dip_switch;
+#endif // defined(DIP_SWITCH_ENABLE) && defined(SPLIT_DIP_SWITCH_ENABLE)
 
 #if defined(SPLIT_WATCHDOG_ENABLE)
     bool watchdog_pinged;

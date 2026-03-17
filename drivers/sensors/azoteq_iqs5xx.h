@@ -6,8 +6,25 @@
 
 #include "compiler_support.h"
 #include "i2c_master.h"
-#include "pointing_device.h"
 #include "util.h"
+#include "report.h"
+#ifdef POINTING_DEVICE_DRIVER_azoteq_iqs5xx
+#    include "pointing_device.h"
+#endif
+
+#if defined(AZOTEQ_IQS5XX_TPS43)
+#    define AZOTEQ_IQS5XX_WIDTH_MM 43
+#    define AZOTEQ_IQS5XX_HEIGHT_MM 40
+#    define AZOTEQ_IQS5XX_RESOLUTION_X 2048
+#    define AZOTEQ_IQS5XX_RESOLUTION_Y 1792
+#elif defined(AZOTEQ_IQS5XX_TPS65)
+#    define AZOTEQ_IQS5XX_WIDTH_MM 65
+#    define AZOTEQ_IQS5XX_HEIGHT_MM 49
+#    define AZOTEQ_IQS5XX_RESOLUTION_X 3072
+#    define AZOTEQ_IQS5XX_RESOLUTION_Y 2048
+#elif !defined(AZOTEQ_IQS5XX_WIDTH_MM) && !defined(AZOTEQ_IQS5XX_HEIGHT_MM)
+#    error "You must define one of the available azoteq trackpads or specify at least the width and height"
+#endif
 
 typedef enum {
     AZOTEQ_IQS5XX_UNKNOWN,
@@ -67,7 +84,7 @@ typedef struct PACKED {
 typedef struct {
     uint8_t h : 8;
     uint8_t l : 8;
-} azoteq_iqs5xx_relative_xy_t;
+} azoteq_iqs5xx_xy_t;
 
 typedef struct {
     uint8_t                          previous_cycle_time;
@@ -76,19 +93,39 @@ typedef struct {
     azoteq_iqs5xx_system_info_0_t    system_info_0;
     azoteq_iqs5xx_system_info_1_t    system_info_1;
     uint8_t                          number_of_fingers;
-    azoteq_iqs5xx_relative_xy_t      x;
-    azoteq_iqs5xx_relative_xy_t      y;
+    azoteq_iqs5xx_xy_t               x;
+    azoteq_iqs5xx_xy_t               y;
 } azoteq_iqs5xx_base_data_t;
 
-STATIC_ASSERT(sizeof(azoteq_iqs5xx_base_data_t) == 10, "azoteq_iqs5xx_basic_report_t should be 10 bytes");
+STATIC_ASSERT(sizeof(azoteq_iqs5xx_base_data_t) == 10, "azoteq_iqs5xx_base_data_t should be 10 bytes");
 
 typedef struct {
-    uint8_t                     number_of_fingers;
-    azoteq_iqs5xx_relative_xy_t x;
-    azoteq_iqs5xx_relative_xy_t y;
+    uint8_t            number_of_fingers;
+    azoteq_iqs5xx_xy_t x;
+    azoteq_iqs5xx_xy_t y;
 } azoteq_iqs5xx_report_data_t;
 
 STATIC_ASSERT(sizeof(azoteq_iqs5xx_report_data_t) == 5, "azoteq_iqs5xx_report_data_t should be 5 bytes");
+
+typedef struct PACKED {
+    uint8_t h : 8;
+    uint8_t l : 8;
+} azoteq_iqs5xx_touch_strength_t;
+
+typedef struct PACKED {
+    azoteq_iqs5xx_xy_t             x;
+    azoteq_iqs5xx_xy_t             y;
+    azoteq_iqs5xx_touch_strength_t strength;
+    uint8_t                        touch_area;
+} azoteq_iqs5xx_absolute_finger_data_t;
+
+_Static_assert(sizeof(azoteq_iqs5xx_absolute_finger_data_t) == 7, "azoteq_iqs5xx_absolute_finger_data_t should be 7 bytes");
+
+typedef struct PACKED {
+    azoteq_iqs5xx_absolute_finger_data_t fingers[5];
+} azoteq_iqs5xx_digitizer_data_t;
+
+//_Static_assert(sizeof(azoteq_iqs5xx_digitizer_data_t) == 40, "azoteq_iqs5xx_digitizer_data_t should be 40 bytes");
 
 typedef struct PACKED {
     bool sw_input : 1;
@@ -178,20 +215,32 @@ typedef struct {
 #    define POINTING_DEVICE_TASK_THROTTLE_MS AZOTEQ_IQS5XX_REPORT_RATE + 1
 #endif
 
-const pointing_device_driver_t azoteq_iqs5xx_pointing_device_driver;
+#ifdef POINTING_DEVICE_DRIVER_azoteq_iqs5xx
+extern const pointing_device_driver_t azoteq_iqs5xx_pointing_device_driver;
+#endif
 
-void           azoteq_iqs5xx_init(void);
+#ifdef DIGITIZER_ENABLE
+// Returns chip-detected gesture events from the last digitizer_driver_get_report() call.
+// ev0: single-finger gestures (swipe_x_neg/pos, swipe_y_neg/pos, tap, press_and_hold)
+// ev1: multi-finger gestures (scroll, zoom, two_finger_tap)
+// x_delta: signed relative X — for zoom: >0 = spreading (zoom in), <0 = pinching (zoom out)
+void azoteq_iqs5xx_get_digitizer_gesture_events(azoteq_iqs5xx_gesture_events_0_t *ev0, azoteq_iqs5xx_gesture_events_1_t *ev1, int16_t *x_delta);
+#endif
+
+bool           azoteq_iqs5xx_init(void);
 i2c_status_t   azoteq_iqs5xx_wake(void);
+#ifdef POINTING_DEVICE_ENABLE
 report_mouse_t azoteq_iqs5xx_get_report(report_mouse_t mouse_report);
-i2c_status_t   azoteq_iqs5xx_get_report_rate(azoteq_iqs5xx_report_rate_t *report_rate, azoteq_iqs5xx_charging_modes_t mode, bool end_session);
-i2c_status_t   azoteq_iqs5xx_set_report_rate(uint16_t report_rate_ms, azoteq_iqs5xx_charging_modes_t mode, bool end_session);
-i2c_status_t   azoteq_iqs5xx_set_event_mode(bool enabled, bool end_session);
-i2c_status_t   azoteq_iqs5xx_set_reati(bool enabled, bool end_session);
-i2c_status_t   azoteq_iqs5xx_set_gesture_config(bool end_session);
-i2c_status_t   azoteq_iqs5xx_set_xy_config(bool flip_x, bool flip_y, bool switch_xy, bool palm_reject, bool end_session);
-i2c_status_t   azoteq_iqs5xx_reset_suspend(bool reset, bool suspend, bool end_session);
-i2c_status_t   azoteq_iqs5xx_get_base_data(azoteq_iqs5xx_base_data_t *base_data);
-void           azoteq_iqs5xx_set_cpi(uint16_t cpi);
-uint16_t       azoteq_iqs5xx_get_cpi(void);
-uint16_t       azoteq_iqs5xx_get_product(void);
-void           azoteq_iqs5xx_setup_resolution(void);
+#endif
+i2c_status_t azoteq_iqs5xx_get_report_rate(azoteq_iqs5xx_report_rate_t *report_rate, azoteq_iqs5xx_charging_modes_t mode, bool end_session);
+i2c_status_t azoteq_iqs5xx_set_report_rate(uint16_t report_rate_ms, azoteq_iqs5xx_charging_modes_t mode, bool end_session);
+i2c_status_t azoteq_iqs5xx_set_event_mode(bool enabled, bool end_session);
+i2c_status_t azoteq_iqs5xx_set_reati(bool enabled, bool end_session);
+i2c_status_t azoteq_iqs5xx_set_gesture_config(bool end_session);
+i2c_status_t azoteq_iqs5xx_set_xy_config(bool flip_x, bool flip_y, bool switch_xy, bool palm_reject, bool end_session);
+i2c_status_t azoteq_iqs5xx_reset_suspend(bool reset, bool suspend, bool end_session);
+i2c_status_t azoteq_iqs5xx_get_base_data(azoteq_iqs5xx_base_data_t *base_data);
+void         azoteq_iqs5xx_set_cpi(uint16_t cpi);
+uint16_t     azoteq_iqs5xx_get_cpi(void);
+uint16_t     azoteq_iqs5xx_get_product(void);
+void         azoteq_iqs5xx_setup_resolution(void);

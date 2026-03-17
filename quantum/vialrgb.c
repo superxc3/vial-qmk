@@ -155,6 +155,36 @@ void vialrgb_get_value(uint8_t *data, uint8_t length) {
         break;
     }
 #endif
+    case vialrgb_get_indicator_leds: {
+        /* args[0] = role_idx; response args[0..7]: 8-byte LE uint64 bitmask */
+        uint8_t role = args[0];
+        memset(args, 0, 8);
+        vialrgb_get_indicator_leds_user(role, args);
+        break;
+    }
+    case vialrgb_get_indicator_colors: {
+        /* args[0..29]: [r,g,b] per role */
+        memset(args, 0, 30);
+        vialrgb_get_indicator_colors_user(args);
+        break;
+    }
+    case vialrgb_get_trackpad_settings: {
+        memset(args, 0, 9);
+        vialrgb_get_trackpad_settings_user(args);
+        break;
+    }
+    case vialrgb_get_trackpad_layers: {
+        memset(args, 0, 6);
+        vialrgb_get_trackpad_layers_user(args);
+        break;
+    }
+    case vialrgb_get_oled_config: {
+        /* args[0] = item (0xFF=row1, 0-9=layer); args[1..5] = name (5 bytes, null-padded) */
+        uint8_t item = args[0];
+        memset(args + 1, 0, 5);
+        vialrgb_get_oled_config_user(item, (char *)(args + 1));
+        break;
+    }
     }
 }
 
@@ -178,7 +208,55 @@ void vialrgb_set_value(uint8_t *data, uint8_t length) {
         break;
     }
 #endif
+    case vialrgb_set_indicator_leds: {
+        /* args[0] = role_idx; args[1..8]: 8-byte LE uint64 bitmask */
+        vialrgb_set_indicator_leds_user(args[0], args + 1);
+        break;
     }
+    case vialrgb_set_indicator_colors: {
+        /* args[0..29]: [r,g,b] per role */
+        vialrgb_set_indicator_colors_user(args);
+        break;
+    }
+    case vialrgb_set_trackpad_settings: {
+        vialrgb_set_trackpad_settings_user(args);
+        break;
+    }
+    case vialrgb_set_trackpad_layers: {
+        vialrgb_set_trackpad_layers_user(args);
+        break;
+    }
+    case vialrgb_set_oled_config: {
+        /* args[0] = item (0xFF=row1, 0-9=layer); args[1..5] = name (5 bytes) */
+        vialrgb_set_oled_config_user(args[0], (const char *)(args + 1));
+        break;
+    }
+    }
+}
+
+/* Override in keymap.c to persist per-key colors to EEPROM on Save. */
+__attribute__((weak)) void vialrgb_save_user(void) {}
+
+/* Weak stubs for trackpad settings — override in keymap.c. */
+__attribute__((weak)) void vialrgb_get_trackpad_settings_user(uint8_t *args) { (void)args; }
+__attribute__((weak)) void vialrgb_set_trackpad_settings_user(const uint8_t *args) { (void)args; }
+__attribute__((weak)) void vialrgb_get_trackpad_layers_user(uint8_t *args) { (void)args; }
+__attribute__((weak)) void vialrgb_set_trackpad_layers_user(const uint8_t *args) { (void)args; }
+__attribute__((weak)) void vialrgb_get_oled_config_user(uint8_t item, char *name_out) { (void)item; (void)name_out; }
+__attribute__((weak)) void vialrgb_set_oled_config_user(uint8_t item, const char *name_in) { (void)item; (void)name_in; }
+
+/* Weak stubs for indicator config — override in keymap.c. */
+__attribute__((weak)) void vialrgb_get_indicator_leds_user(uint8_t role_idx, uint8_t *mask_out) {
+    (void)role_idx; (void)mask_out;
+}
+__attribute__((weak)) void vialrgb_set_indicator_leds_user(uint8_t role_idx, const uint8_t *mask_in) {
+    (void)role_idx; (void)mask_in;
+}
+__attribute__((weak)) void vialrgb_get_indicator_colors_user(uint8_t *colors_out) {
+    (void)colors_out;
+}
+__attribute__((weak)) void vialrgb_set_indicator_colors_user(const uint8_t *colors_in) {
+    (void)colors_in;
 }
 
 void vialrgb_save(uint8_t *data, uint8_t length) {
@@ -186,4 +264,5 @@ void vialrgb_save(uint8_t *data, uint8_t length) {
     (void)length;
 
     eeconfig_force_flush_rgb_matrix();
+    vialrgb_save_user();
 }

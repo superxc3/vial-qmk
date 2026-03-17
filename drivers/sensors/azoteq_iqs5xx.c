@@ -5,6 +5,13 @@
 #include "azoteq_iqs5xx.h"
 #include "pointing_device_internal.h"
 #include "wait.h"
+#include "debug.h"
+#ifdef POINTING_DEVICE_ENABLE
+#    include "report.h"
+#endif
+#ifdef DIGITIZER_ENABLE
+#    include "digitizer.h"
+#endif
 
 #ifndef AZOTEQ_IQS5XX_ADDRESS
 #    define AZOTEQ_IQS5XX_ADDRESS (0x74 << 1)
@@ -15,6 +22,7 @@
 
 #define AZOTEQ_IQS5XX_REG_PRODUCT_NUMBER 0x0000
 #define AZOTEQ_IQS5XX_REG_PREVIOUS_CYCLE_TIME 0x000C
+#define AZOTEQ_IQS5XX_REG_ABSOLUTE_X_POSITION 0x0016
 #define AZOTEQ_IQS5XX_REG_SYSTEM_CONTROL_1 0x0432
 #define AZOTEQ_IQS5XX_REG_REPORT_RATE_ACTIVE 0x057A
 #define AZOTEQ_IQS5XX_REG_IDLE_MODE_TIMEOUT 0x0586
@@ -83,32 +91,20 @@
 #    define AZOTEQ_IQS5XX_EVENT_MODE false
 #endif
 
-#if defined(AZOTEQ_IQS5XX_TPS43)
-#    define AZOTEQ_IQS5XX_WIDTH_MM 43
-#    define AZOTEQ_IQS5XX_HEIGHT_MM 40
-#    define AZOTEQ_IQS5XX_RESOLUTION_X 2048
-#    define AZOTEQ_IQS5XX_RESOLUTION_Y 1792
-#elif defined(AZOTEQ_IQS5XX_TPS65)
-#    define AZOTEQ_IQS5XX_WIDTH_MM 65
-#    define AZOTEQ_IQS5XX_HEIGHT_MM 49
-#    define AZOTEQ_IQS5XX_RESOLUTION_X 3072
-#    define AZOTEQ_IQS5XX_RESOLUTION_Y 2048
-#elif !defined(AZOTEQ_IQS5XX_WIDTH_MM) && !defined(AZOTEQ_IQS5XX_HEIGHT_MM)
-#    error "You must define one of the available azoteq trackpads or specify at least the width and height"
-#endif
-
 #define DIVIDE_UNSIGNED_ROUND(numerator, denominator) (((numerator) + ((denominator) / 2)) / (denominator))
 #define AZOTEQ_IQS5XX_INCH_TO_RESOLUTION_X(inch) (DIVIDE_UNSIGNED_ROUND((inch) * (uint32_t)AZOTEQ_IQS5XX_WIDTH_MM * 10, 254))
 #define AZOTEQ_IQS5XX_RESOLUTION_X_TO_INCH(px) (DIVIDE_UNSIGNED_ROUND((px) * (uint32_t)254, AZOTEQ_IQS5XX_WIDTH_MM * 10))
 #define AZOTEQ_IQS5XX_INCH_TO_RESOLUTION_Y(inch) (DIVIDE_UNSIGNED_ROUND((inch) * (uint32_t)AZOTEQ_IQS5XX_HEIGHT_MM * 10, 254))
 #define AZOTEQ_IQS5XX_RESOLUTION_Y_TO_INCH(px) (DIVIDE_UNSIGNED_ROUND((px) * (uint32_t)254, AZOTEQ_IQS5XX_HEIGHT_MM * 10))
 
+#ifdef POINTING_DEVICE_DRIVER_azoteq_iqs5xx
 const pointing_device_driver_t azoteq_iqs5xx_pointing_device_driver = {
     .init       = azoteq_iqs5xx_init,
     .get_report = azoteq_iqs5xx_get_report,
     .set_cpi    = azoteq_iqs5xx_set_cpi,
     .get_cpi    = azoteq_iqs5xx_get_cpi,
 };
+#endif
 
 static uint16_t azoteq_iqs5xx_product_number = AZOTEQ_IQS5XX_UNKNOWN;
 
@@ -116,6 +112,10 @@ static struct {
     uint16_t resolution_x;
     uint16_t resolution_y;
 } azoteq_iqs5xx_device_resolution_t;
+
+i2c_status_t azoteq_iqs5xx_wake(void) {
+    return i2c_ping_address(AZOTEQ_IQS5XX_ADDRESS, AZOTEQ_IQS5XX_TIMEOUT_MS);
+}
 
 i2c_status_t azoteq_iqs5xx_end_session(void) {
     const uint8_t END_BYTE = 1; // any data
@@ -321,7 +321,7 @@ void azoteq_iqs5xx_setup_resolution(void) {
 
 static i2c_status_t azoteq_iqs5xx_init_status = 1;
 
-void azoteq_iqs5xx_init(void) {
+bool azoteq_iqs5xx_init(void) {
     i2c_init();
     i2c_ping_address(AZOTEQ_IQS5XX_ADDRESS, 1); // wake
     azoteq_iqs5xx_reset_suspend(true, false, true);
@@ -329,6 +329,22 @@ void azoteq_iqs5xx_init(void) {
     i2c_ping_address(AZOTEQ_IQS5XX_ADDRESS, 1); // wake
     if (azoteq_iqs5xx_get_product() != AZOTEQ_IQS5XX_UNKNOWN) {
         azoteq_iqs5xx_setup_resolution();
+#ifdef DIGITIZER_ENABLE
+        {
+            azoteq_iqs5xx_resolution_t resolution = {0};
+#if defined(AZOTEQ_IQS5XX_ROTATION_90) || defined(AZOTEQ_IQS5XX_ROTATION_270)
+            // switch_xy is applied after these registers are written, so swap values to match
+            // the output axes: output X = physical Y axis (resolution_y), output Y = physical X axis (resolution_x).
+            // This prevents output X coordinates from exceeding the HID logical max after axis swap.
+            resolution.x_resolution = AZOTEQ_IQS5XX_SWAP_H_L_BYTES(azoteq_iqs5xx_device_resolution_t.resolution_y);
+            resolution.y_resolution = AZOTEQ_IQS5XX_SWAP_H_L_BYTES(azoteq_iqs5xx_device_resolution_t.resolution_x);
+#else
+            resolution.x_resolution = AZOTEQ_IQS5XX_SWAP_H_L_BYTES(azoteq_iqs5xx_device_resolution_t.resolution_x);
+            resolution.y_resolution = AZOTEQ_IQS5XX_SWAP_H_L_BYTES(azoteq_iqs5xx_device_resolution_t.resolution_y);
+#endif
+            azoteq_iqs5xx_init_status = i2c_write_register16(AZOTEQ_IQS5XX_ADDRESS, AZOTEQ_IQS5XX_REG_X_RESOLUTION, (uint8_t *)&resolution, sizeof(azoteq_iqs5xx_resolution_t), AZOTEQ_IQS5XX_TIMEOUT_MS);
+        }
+#endif
         azoteq_iqs5xx_init_status = azoteq_iqs5xx_set_report_rate(AZOTEQ_IQS5XX_REPORT_RATE, AZOTEQ_IQS5XX_ACTIVE, false);
         azoteq_iqs5xx_init_status |= azoteq_iqs5xx_set_report_rate(AZOTEQ_IQS5XX_REPORT_RATE, AZOTEQ_IQS5XX_IDLE, false);
         azoteq_iqs5xx_init_status |= azoteq_iqs5xx_set_report_rate(AZOTEQ_IQS5XX_REPORT_RATE, AZOTEQ_IQS5XX_IDLE_TOUCH, false);
@@ -349,68 +365,121 @@ void azoteq_iqs5xx_init(void) {
         azoteq_iqs5xx_init_status |= azoteq_iqs5xx_set_gesture_config(true);
         wait_ms(AZOTEQ_IQS5XX_REPORT_RATE + 1);
     }
+
+    return azoteq_iqs5xx_init_status == I2C_STATUS_SUCCESS;
 };
 
+#ifdef POINTING_DEVICE_ENABLE
 report_mouse_t azoteq_iqs5xx_get_report(report_mouse_t mouse_report) {
     report_mouse_t temp_report = {0};
 
-    if (azoteq_iqs5xx_init_status == I2C_STATUS_SUCCESS) {
-        azoteq_iqs5xx_base_data_t base_data       = {0};
-        i2c_status_t              status          = azoteq_iqs5xx_get_base_data(&base_data);
-        bool                      ignore_movement = false;
+    azoteq_iqs5xx_base_data_t base_data       = {0};
+    i2c_status_t              status          = azoteq_iqs5xx_get_base_data(&base_data);
+    bool                      ignore_movement = false;
 
-        if (status == I2C_STATUS_SUCCESS) {
+    if (status == I2C_STATUS_SUCCESS) {
 #ifdef POINTING_DEVICE_DEBUG
-            if (base_data.previous_cycle_time > AZOTEQ_IQS5XX_REPORT_RATE) {
-                pd_dprintf("IQS5XX - previous cycle time missed, took: %dms\n", base_data.previous_cycle_time);
-            }
-#endif
-            if (base_data.gesture_events_0.single_tap || base_data.gesture_events_0.press_and_hold) {
-                pd_dprintf("IQS5XX - Single tap/hold.\n");
-                temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON1);
-            } else if (base_data.gesture_events_1.two_finger_tap) {
-                pd_dprintf("IQS5XX - Two finger tap.\n");
-                temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON2);
-            } else if (base_data.gesture_events_0.swipe_x_neg) {
-                pd_dprintf("IQS5XX - X-.\n");
-                temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON4);
-                ignore_movement     = true;
-            } else if (base_data.gesture_events_0.swipe_x_pos) {
-                pd_dprintf("IQS5XX - X+.\n");
-                temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON5);
-                ignore_movement     = true;
-            } else if (base_data.gesture_events_0.swipe_y_neg) {
-                pd_dprintf("IQS5XX - Y-.\n");
-                temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON6);
-                ignore_movement     = true;
-            } else if (base_data.gesture_events_0.swipe_y_pos) {
-                pd_dprintf("IQS5XX - Y+.\n");
-                temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON3);
-                ignore_movement     = true;
-            } else if (base_data.gesture_events_1.zoom) {
-                if (AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.x.h, base_data.x.l) < 0) {
-                    pd_dprintf("IQS5XX - Zoom out.\n");
-                    temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON7);
-                } else if (AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.x.h, base_data.x.l) > 0) {
-                    pd_dprintf("IQS5XX - Zoom in.\n");
-                    temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON8);
-                }
-            } else if (base_data.gesture_events_1.scroll) {
-                pd_dprintf("IQS5XX - Scroll.\n");
-                temp_report.h = CONSTRAIN_HID(AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.x.h, base_data.x.l));
-                temp_report.v = CONSTRAIN_HID(AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.y.h, base_data.y.l));
-            }
-            if (base_data.number_of_fingers == 1 && !ignore_movement) {
-                temp_report.x = CONSTRAIN_HID_XY(AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.x.h, base_data.x.l));
-                temp_report.y = CONSTRAIN_HID_XY(AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.y.h, base_data.y.l));
-            }
-
-        } else {
-            pd_dprintf("IQS5XX - get report failed, i2c status: %d \n", status);
+        if (base_data.previous_cycle_time > AZOTEQ_IQS5XX_REPORT_RATE) {
+            pd_dprintf("IQS5XX - previous cycle time missed, took: %dms\n", base_data.previous_cycle_time);
         }
+#endif
+        if (base_data.gesture_events_0.single_tap || base_data.gesture_events_0.press_and_hold) {
+            pd_dprintf("IQS5XX - Single tap/hold.\n");
+            temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON1);
+        } else if (base_data.gesture_events_1.two_finger_tap) {
+            pd_dprintf("IQS5XX - Two finger tap.\n");
+            temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON2);
+        } else if (base_data.gesture_events_0.swipe_x_neg) {
+            pd_dprintf("IQS5XX - X-.\n");
+            temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON4);
+            ignore_movement     = true;
+        } else if (base_data.gesture_events_0.swipe_x_pos) {
+            pd_dprintf("IQS5XX - X+.\n");
+            temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON5);
+            ignore_movement     = true;
+        } else if (base_data.gesture_events_0.swipe_y_neg) {
+            pd_dprintf("IQS5XX - Y-.\n");
+            temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON6);
+            ignore_movement     = true;
+        } else if (base_data.gesture_events_0.swipe_y_pos) {
+            pd_dprintf("IQS5XX - Y+.\n");
+            temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON3);
+            ignore_movement     = true;
+        } else if (base_data.gesture_events_1.zoom) {
+            if (AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.x.h, base_data.x.l) < 0) {
+                pd_dprintf("IQS5XX - Zoom out.\n");
+                temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON7);
+            } else if (AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.x.h, base_data.x.l) > 0) {
+                pd_dprintf("IQS5XX - Zoom in.\n");
+                temp_report.buttons = pointing_device_handle_buttons(temp_report.buttons, true, POINTING_DEVICE_BUTTON8);
+            }
+        } else if (base_data.gesture_events_1.scroll) {
+            pd_dprintf("IQS5XX - Scroll.\n");
+            temp_report.h = CONSTRAIN_HID(AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.x.h, base_data.x.l));
+            temp_report.v = CONSTRAIN_HID(AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.y.h, base_data.y.l));
+        }
+        if (base_data.number_of_fingers == 1 && !ignore_movement) {
+            temp_report.x = CONSTRAIN_HID_XY(AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.x.h, base_data.x.l));
+            temp_report.y = CONSTRAIN_HID_XY(AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(base_data.y.h, base_data.y.l));
+        }
+
     } else {
-        pd_dprintf("IQS5XX - Init failed, i2c status: %d \n", azoteq_iqs5xx_init_status);
+        pd_dprintf("IQS5XX - get report failed, i2c status: %d \n", status);
     }
 
     return temp_report;
 }
+#endif
+
+#ifdef DIGITIZER_ENABLE
+
+// Combined struct: base header (gesture events + relative delta) immediately followed by
+// absolute finger data. Registers are contiguous: 0x000C (base, 10 bytes) + 0x0016 (fingers, 35 bytes).
+typedef struct PACKED {
+    azoteq_iqs5xx_base_data_t      base;    // 10 bytes @ 0x000C
+    azoteq_iqs5xx_digitizer_data_t fingers; // 35 bytes @ 0x0016
+} azoteq_iqs5xx_combined_digitizer_data_t;
+
+// Last-read gesture events, updated every digitizer_driver_get_report() call.
+// Consumed by digitizer_mouse_fallback via azoteq_iqs5xx_get_digitizer_gesture_events().
+static azoteq_iqs5xx_gesture_events_0_t digitizer_gesture_ev0     = {0};
+static azoteq_iqs5xx_gesture_events_1_t digitizer_gesture_ev1     = {0};
+static int16_t                          digitizer_gesture_x_delta = 0; // zoom: >0 = in, <0 = out
+
+// Returns hardware gesture events captured during the last successful I2C read.
+// x_delta: signed relative X from base_data — for zoom, positive = spreading (in), negative = pinching (out).
+void azoteq_iqs5xx_get_digitizer_gesture_events(azoteq_iqs5xx_gesture_events_0_t *ev0, azoteq_iqs5xx_gesture_events_1_t *ev1, int16_t *x_delta) {
+    if (ev0)     *ev0     = digitizer_gesture_ev0;
+    if (ev1)     *ev1     = digitizer_gesture_ev1;
+    if (x_delta) *x_delta = digitizer_gesture_x_delta;
+}
+
+digitizer_t digitizer_driver_get_report(digitizer_t digitizer_report) {
+    azoteq_iqs5xx_combined_digitizer_data_t combined = {0};
+    azoteq_iqs5xx_wake();
+
+    // Single I2C read: gesture header (0x000C, 10 bytes) + absolute finger data (0x0016, 35 bytes).
+    i2c_status_t status = i2c_read_register16(AZOTEQ_IQS5XX_ADDRESS, AZOTEQ_IQS5XX_REG_PREVIOUS_CYCLE_TIME, (uint8_t *)&combined, sizeof(azoteq_iqs5xx_combined_digitizer_data_t), AZOTEQ_IQS5XX_TIMEOUT_MS);
+    if (status == I2C_STATUS_SUCCESS) {
+        // Store gesture events for digitizer_mouse_fallback to consume.
+        digitizer_gesture_ev0     = combined.base.gesture_events_0;
+        digitizer_gesture_ev1     = combined.base.gesture_events_1;
+        digitizer_gesture_x_delta = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.base.x.h, combined.base.x.l);
+
+        for (int i = 0; i < 5; i++) {
+            digitizer_report.contacts[i].x          = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.fingers.fingers[i].x.h, combined.fingers.fingers[i].x.l);
+            digitizer_report.contacts[i].y          = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.fingers.fingers[i].y.h, combined.fingers.fingers[i].y.l);
+            digitizer_report.contacts[i].confidence = 1;
+            digitizer_report.contacts[i].tip        = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.fingers.fingers[i].strength.h, combined.fingers.fingers[i].strength.l) > 0 ? 1 : 0;
+            digitizer_report.contacts[i].type       = FINGER;
+        }
+        azoteq_iqs5xx_end_session();
+    } else {
+        // Clear gesture events on I2C failure so stale bits don't fire keycodes.
+        memset(&digitizer_gesture_ev0, 0, sizeof(digitizer_gesture_ev0));
+        memset(&digitizer_gesture_ev1, 0, sizeof(digitizer_gesture_ev1));
+        digitizer_gesture_x_delta = 0;
+    }
+    return digitizer_report;
+}
+#endif

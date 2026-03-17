@@ -47,6 +47,11 @@ void dip_switch_read(bool forced);
 void dip_switch_init(void);
 void dip_switch_task(void);
 
+#if defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
+uint32_t dip_switch_read_state(void);
+void     dip_switch_apply_state(uint32_t state);
+#endif
+
 #ifdef DIP_SWITCH_MAP_ENABLE
 #    define NUM_DIP_STATES 2
 #    define DIP_SWITCH_OFF_ON(off, on) \

@@ -93,6 +93,14 @@ static const USBDescriptor *usb_get_descriptor_cb(USBDriver *usbp, uint8_t dtype
     return &descriptor;
 }
 
+#ifdef DIGITIZER_ENABLE
+extern bool digitizer_send_mouse_reports;
+
+#ifndef DIGITIZER_BUTTON_TYPE
+#    define DIGITIZER_BUTTON_TYPE 2
+#endif
+#endif
+
 /* ---------------------------------------------------------
  *                  USB driver functions
  * ---------------------------------------------------------
@@ -291,6 +299,30 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
 #endif
                                 usbSetupTransfer(usbp, set_report_buf, sizeof(set_report_buf), set_led_transfer_cb);
                                 return true;
+#ifdef DIGITIZER_ENABLE
+#if defined(SHARED_EP_ENABLE) && !defined(DIGITIZER_SHARED_EP)
+                            case DIGITIZER_INTERFACE:
+#endif
+                                // Touchpad set feature reports
+                                if ((setup->wValue.hbyte == 0x3) && (setup->wValue.lbyte == REPORT_ID_DIGITIZER_CONFIGURATION)) {
+                                    usbSetupTransfer(usbp, &(setup->wValue.lbyte), 1, NULL);
+                                    return true;
+                                } else if ((setup->wValue.hbyte == 0x3) && (setup->wValue.lbyte == REPORT_ID_DIGITIZER_FUNCTION_SWITCH)) {
+                                    uint8_t buffer[64] = {};
+                                    usbReadSetup(usbp, DIGITIZER_IN_EPNUM, buffer);
+#if defined(POINTING_DEVICE_DRIVER_digitizer)
+                                    if (buffer[3] == 0x3) {
+                                        digitizer_send_mouse_reports = false;
+                                    }
+#endif
+                                    usbSetupTransfer(usbp, &(setup->wValue.lbyte), 1, NULL);
+                                    return true;
+                                } else if ((setup->wValue.hbyte == 0x3) && (setup->wValue.lbyte == REPORT_ID_DIGITIZER)) {
+                                    uint8_t response[] = {REPORT_ID_DIGITIZER, DIGITIZER_BUTTON_TYPE};
+                                    usbSetupTransfer(usbp, response, 5, NULL);
+                                    return true;
+                                }
+#endif
                         }
                         break;
                     case HID_REQ_SetProtocol:
@@ -498,6 +530,12 @@ void send_joystick(report_joystick_t *report) {
 void send_digitizer(report_digitizer_t *report) {
 #ifdef DIGITIZER_ENABLE
     send_report(USB_ENDPOINT_IN_DIGITIZER, report, sizeof(report_digitizer_t));
+#endif
+}
+
+void send_digitizer_stylus(report_digitizer_stylus_t *report) {
+#ifdef DIGITIZER_ENABLE
+    send_report(USB_ENDPOINT_IN_DIGITIZER, report, sizeof(report_digitizer_stylus_t));
 #endif
 }
 
