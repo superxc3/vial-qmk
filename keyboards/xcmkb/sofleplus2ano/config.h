@@ -1,0 +1,182 @@
+#pragma once
+#include "encoder.c"
+
+
+
+#define SPLIT_WPM_ENABLE
+#define SPLIT_LAYER_STATE_ENABLE
+#define SPLIT_LED_STATE_ENABLE
+#define SPLIT_HAPTIC_ENABLE
+#define SPLIT_POINTING_ENABLE
+#define POINTING_DEVICE_RIGHT
+
+
+
+#ifdef DIP_SWITCH_ENABLE
+
+#define DIP_SWITCH_PINS { GP12 }
+
+#endif
+
+
+/* key matrix size */
+// Rows are doubled-up
+#define MATRIX_ROWS 10 
+#define MATRIX_COLS 7 /*original 6*/
+
+
+#define DEBOUNCE 5
+#define ENCODER_RESOLUTION 2
+#define TAP_CODE_DELAY 10
+
+/* Define layer number */
+#define DYNAMIC_KEYMAP_LAYER_COUNT 10
+
+/*Follow for gaming*/
+#define USB_POLLING_INTERVAL_MS 1
+
+
+
+/* To configure amount of time between encoder keyup and keydown; added upon encoder_map; default match with the value of tap_code_delay*/
+#    ifdef ENCODER_MAP_ENABLE
+#define ENCODER_MAP_KEY_DELAY 10
+#    endif
+
+
+    #ifndef NO_DEBUG
+    #define NO_DEBUG
+    #endif // !NO_DEBUG
+    #if !defined(NO_PRINT) && !defined(CONSOLE_ENABLE)
+    #define NO_PRINT
+    #endif // !NO_PRINT
+	
+/* RP2040 boot setting */
+#define RP2040_BOOTLOADER_DOUBLE_TAP_RESET // Activates the double-tap behavior
+#define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_TIMEOUT 200U // Timeout window in ms in which the double tap can occur.
+#define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_LED GP17 // Specify a optional status led by GPIO number which blinks when entering the bootloader
+
+/* EEPROM Driver Configuration https://github.com/vial-kb/vial-gui/issues/158#issuecomment-1535447197*/	
+#define WEAR_LEVELING_LOGICAL_SIZE 8192 //8192 is just an example
+#define WEAR_LEVELING_BACKING_SIZE 16384 // (WEAR_LEVELING_LOGICAL_SIZE * 2)
+//#define DYNAMIC_KEYMAP_EEPROM_MAX_ADDR   3996
+
+#ifdef NKRO_ENABLE
+#define FORCE_NKRO
+#endif
+
+// Vial Support
+#define VIAL_KEYBOARD_UID {0x12, 0x38, 0x7D, 0x9C, 0x1C, 0x0E, 0x58, 0x43}
+
+#define SUPER_ALT_TAB_ENABLE	//Enable super alt tab custom keycode(+178).
+
+
+/* Maximum of combo, tap dance in vial */
+#define VIAL_TAP_DANCE_ENTRIES 32
+#define VIAL_COMBO_ENTRIES 32
+#define VIAL_KEY_OVERRIDE_ENTRIES 32
+#define VIAL_USER_ENTRIES 32
+
+#ifdef CAPS_WORD_ENABLE
+#define BOTH_SHIFTS_TURNS_ON_CAPS_WORD
+#endif
+
+
+#define WS2812_DI_PIN GP0
+
+#ifdef RGBLIGHT_ENABLE
+#define RGBLED_NUM 72
+#define RGBLED_SPLIT { 36, 36 }
+#define RGBLIGHT_SLEEP 			//Turn off LEDs when computer sleeping (+72)
+#define RGBLIGHT_LIMIT_VAL 120  //255 as maximum, 120 as half
+#define RGBLIGHT_HUE_STEP  10
+#define RGBLIGHT_SAT_STEP  17
+#define RGBLIGHT_VAL_STEP  17
+#endif
+
+
+
+#ifdef RGB_MATRIX_ENABLE
+#define RGBLED_NUM 72
+#define RGB_MATRIX_LED_COUNT 72
+#define RGB_MATRIX_SPLIT { 36, 36 }
+#define DRIVER_LED_TOTAL RGBLED_NUM
+#define SPLIT_TRANSPORT_MIRROR //https://github.com/qmk/qmk_firmware/blob/master/docs/config_options.md
+#define RGBLIGHT_LIMIT_VAL 120
+#define RGBLIGHT_HUE_STEP  10
+#define RGBLIGHT_SAT_STEP  17
+#define RGBLIGHT_VAL_STEP  17
+#define RGBLIGHT_SLEEP 			//Turn off LEDs when computer sleeping (+72)
+#define RGB_MATRIX_SLEEP
+#ifndef RGB_MATRIX_MAXIMUM_BRIGHTNESS
+#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 120
+#endif
+
+//#define VIALRGB_NO_DIRECT					//Save space
+#define RGB_MATRIX_FRAMEBUFFER_EFFECTS 	//This is for solidreactive effect
+#define RGB_MATRIX_KEYPRESSES 			//This is for typing heatmap
+
+// RGB Matrix lighting effect, need to add one by one
+// 2024.11.27 remove redundant effects
+//#define ENABLE_RGB_MATRIX_ALPHAS_MODS
+//#define ENABLE_RGB_MATRIX_GRADIENT_UP_DOWN
+#define ENABLE_RGB_MATRIX_GRADIENT_LEFT_RIGHT
+#define ENABLE_RGB_MATRIX_BREATHING
+#define ENABLE_RGB_MATRIX_BAND_SAT
+#define ENABLE_RGB_MATRIX_BAND_VAL
+#define ENABLE_RGB_MATRIX_BAND_PINWHEEL_SAT
+#define ENABLE_RGB_MATRIX_BAND_PINWHEEL_VAL
+#define ENABLE_RGB_MATRIX_BAND_SPIRAL_SAT
+#define ENABLE_RGB_MATRIX_BAND_SPIRAL_VAL
+#define ENABLE_RGB_MATRIX_CYCLE_ALL
+#define ENABLE_RGB_MATRIX_CYCLE_LEFT_RIGHT
+//#define ENABLE_RGB_MATRIX_CYCLE_UP_DOWN
+#define ENABLE_RGB_MATRIX_RAINBOW_MOVING_CHEVRON
+#define ENABLE_RGB_MATRIX_CYCLE_OUT_IN
+#define ENABLE_RGB_MATRIX_CYCLE_OUT_IN_DUAL
+#define ENABLE_RGB_MATRIX_CYCLE_PINWHEEL
+#define ENABLE_RGB_MATRIX_CYCLE_SPIRAL
+#define ENABLE_RGB_MATRIX_DUAL_BEACON
+#define ENABLE_RGB_MATRIX_RAINBOW_BEACON
+#define ENABLE_RGB_MATRIX_RAINBOW_PINWHEELS
+#define ENABLE_RGB_MATRIX_FLOWER_BLOOMING
+#define ENABLE_RGB_MATRIX_RAINDROPS
+#define ENABLE_RGB_MATRIX_JELLYBEAN_RAINDROPS
+#define ENABLE_RGB_MATRIX_HUE_BREATHING
+#define ENABLE_RGB_MATRIX_HUE_PENDULUM
+#define ENABLE_RGB_MATRIX_HUE_WAVE
+#define ENABLE_RGB_MATRIX_PIXEL_FRACTAL
+#define ENABLE_RGB_MATRIX_PIXEL_FLOW
+#define ENABLE_RGB_MATRIX_PIXEL_RAIN
+#define ENABLE_RGB_MATRIX_STARLIGHT
+#define ENABLE_RGB_MATRIX_STARLIGHT_DUAL_HUE
+#define ENABLE_RGB_MATRIX_STARLIGHT_DUAL_SAT
+#define ENABLE_RGB_MATRIX_RIVERFLOW
+
+/*These modes don't require any additional defines.*/
+#define ENABLE_RGB_MATRIX_TYPING_HEATMAP
+#define ENABLE_RGB_MATRIX_DIGITAL_RAIN
+
+/*These modes also require the RGB_MATRIX_FRAMEBUFFER_EFFECTS define to be available.*/
+#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_SIMPLE
+#define ENABLE_RGB_MATRIX_SOLID_REACTIVE
+#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_WIDE
+#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_MULTIWIDE
+//#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_CROSS
+#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_MULTICROSS
+#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_NEXUS
+#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_MULTINEXUS
+#define ENABLE_RGB_MATRIX_SPLASH
+#define ENABLE_RGB_MATRIX_MULTISPLASH
+#define ENABLE_RGB_MATRIX_SOLID_SPLASH
+#define ENABLE_RGB_MATRIX_SOLID_MULTISPLASH
+
+#endif
+
+
+/* oled i2c */
+#define OLED_TIMEOUT 120000
+#undef I2C_DRIVER
+#define OLED_DISPLAY_ADDRESS 0x3C
+
+
+

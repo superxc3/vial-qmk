@@ -86,6 +86,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef POINTING_DEVICE_ENABLE
 #    include "pointing_device.h"
 #endif
+#ifdef DIGITIZER_ENABLE
+#    include "digitizer.h"
+#endif
 #ifdef MIDI_ENABLE
 #    include "process_midi.h"
 #endif
@@ -540,6 +543,10 @@ void keyboard_init(void) {
 #ifdef SPLIT_KEYBOARD
     split_post_init();
 #endif
+#ifdef DIGITIZER_ENABLE
+    // init before pointing device
+    digitizer_init();
+#endif
 #ifdef POINTING_DEVICE_ENABLE
     // init after split init
     pointing_device_init();
@@ -763,6 +770,14 @@ void keyboard_task(void) {
 #ifdef ENCODER_ENABLE
     if (encoder_task()) {
         last_encoder_activity_trigger();
+        activity_has_occurred = true;
+    }
+#endif
+
+#ifdef DIGITIZER_ENABLE
+    // The digitizer may be a pointing device driver, so update its state before the pointing device
+    if (digitizer_task()) {
+        last_pointing_device_activity_trigger();
         activity_has_occurred = true;
     }
 #endif

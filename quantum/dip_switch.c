@@ -147,6 +147,48 @@ void dip_switch_read(bool forced) {
     }
 }
 
+#if defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
+uint32_t dip_switch_read_state(void) {
+    uint32_t state = 0;
+#    ifdef DIP_SWITCH_PINS
+    for (uint8_t i = 0; i < NUM_DIP_SWITCHES; i++) {
+        if (!gpio_read_pin(dip_switch_pad[i])) {
+            state |= (uint32_t)1 << i;
+        }
+    }
+#    endif
+    return state;
+}
+
+void dip_switch_apply_state(uint32_t state) {
+    bool     has_changed = false;
+    uint32_t mask        = 0;
+    for (uint8_t i = 0; i < NUM_DIP_SWITCHES; i++) {
+        bool active = (state >> i) & 1;
+        mask |= active << i;
+        if (last_dip_switch_state[i] != active) {
+            has_changed = true;
+#    ifndef DIP_SWITCH_MAP_ENABLE
+            dip_switch_update_kb(i, active);
+#    else
+            dip_switch_exec_mapping(i, active);
+#    endif
+        }
+    }
+    if (has_changed) {
+#    ifndef DIP_SWITCH_MAP_ENABLE
+        dip_switch_update_mask_kb(mask);
+#    endif
+        for (uint8_t i = 0; i < NUM_DIP_SWITCHES; i++) {
+            last_dip_switch_state[i] = (state >> i) & 1;
+        }
+    }
+}
+#endif // defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
+
 void dip_switch_task(void) {
+#if defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
+    return; // Transport handles DIP switch sync on both halves
+#endif
     dip_switch_read(false);
 }
