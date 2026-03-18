@@ -631,7 +631,7 @@ void housekeeping_task_user(void) {
         }
         if (bl_trigger) {
             if (bl_hold_start == 0) bl_hold_start = timer_read32();
-            else if (timer_elapsed32(bl_hold_start) >= 3000) bootloader_jump();
+            else if (timer_elapsed32(bl_hold_start) >= 2000) bootloader_jump();
         } else {
             bl_hold_start = 0;
         }

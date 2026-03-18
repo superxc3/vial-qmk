@@ -51,6 +51,12 @@
 #    endif
 
 	
+/* Bootmagic Lite: hold top-left (left half) or top-right (right half) while plugging in USB */
+#define BOOTMAGIC_LITE_ROW        0  // left half:  global row 0, col 0
+#define BOOTMAGIC_LITE_COLUMN     0
+#define BOOTMAGIC_LITE_ROW_RIGHT  5  // right half: global row 5, col 0
+#define BOOTMAGIC_LITE_COLUMN_RIGHT 0
+
 /* RP2040 boot setting */
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET // Activates the double-tap behavior
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_TIMEOUT 200U // Timeout window in ms in which the double tap can occur.
