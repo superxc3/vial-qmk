@@ -1,0 +1,57 @@
+name: Release XCMKB Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag (e.g. tps43-501b_tps65-501b or 501b-hotfix1)'
+        required: true
+        default: 'tps43-501b_tps65-501b'
+      release_notes:
+        description: 'Release notes'
+        required: false
+        default: 'SoflePLUS2 firmware — tps43-501b and tps65-501b'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    container: ghcr.io/qmk/qmk_cli@sha256:2dc05fc9f32efebd6b05c2b8676ee548358bc7e151e9dbf4dac6b6eed4513b07
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Build tps43-501b
+        run: |
+          git config --global --add safe.directory $(pwd)
+          qmk compile -kb xcmkb/sofleplus2 -km tps43-501b
+
+      - name: Build tps65-501b
+        run: |
+          qmk compile -kb xcmkb/sofleplus2 -km tps65-501b
+
+      - name: Collect firmware files
+        run: |
+          mkdir -p firmware
+          cp .build/xcmkb_sofleplus2_tps43-501b.uf2 firmware/ 2>/dev/null || \
+            find .build -name "*tps43-501b*.uf2" -exec cp {} firmware/ \;
+          cp .build/xcmkb_sofleplus2_tps65-501b.uf2 firmware/ 2>/dev/null || \
+            find .build -name "*tps65-501b*.uf2" -exec cp {} firmware/ \;
+          ls -la firmware/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: SoflePLUS2 ${{ github.event.inputs.version }} — xcmkb
+          body: ${{ github.event.inputs.release_notes }}
+          files: firmware/*.uf2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
