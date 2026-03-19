@@ -91,8 +91,7 @@ static uint16_t hires_scroll_resolution;
 #define POINTING_DEVICE_DRIVER(name) POINTING_DEVICE_DRIVER_CONCAT(name)
 
 #ifdef POINTING_DEVICE_DRIVER_custom
-__attribute__((weak)) bool pointing_device_driver_init(void) {
-    return false;
+__attribute__((weak)) void pointing_device_driver_init(void) {
 }
 __attribute__((weak)) report_mouse_t pointing_device_driver_get_report(report_mouse_t mouse_report) {
     return mouse_report;
@@ -182,11 +181,8 @@ __attribute__((weak)) void pointing_device_init(void) {
     if ((POINTING_DEVICE_THIS_SIDE))
 #endif
     {
-        if (pointing_device_driver->init()) {
-            pointing_device_status = POINTING_DEVICE_STATUS_SUCCESS;
-        } else {
-            pointing_device_status = POINTING_DEVICE_STATUS_INIT_FAILED;
-        }
+        pointing_device_driver->init();
+        pointing_device_status = POINTING_DEVICE_STATUS_SUCCESS;
 #ifdef POINTING_DEVICE_MOTION_PIN
 #    ifdef POINTING_DEVICE_MOTION_PIN_ACTIVE_LOW
         gpio_set_pin_input_high(POINTING_DEVICE_MOTION_PIN);

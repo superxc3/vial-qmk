@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "report.h"
 
 typedef struct {
-    bool (*init)(void);
+    void (*init)(void);
     report_mouse_t (*get_report)(report_mouse_t mouse_report);
     void (*set_cpi)(uint16_t);
     uint16_t (*get_cpi)(void);
@@ -81,7 +81,7 @@ typedef struct {
 #elif defined(POINTING_DEVICE_DRIVER_digitizer)
 #    include "digitizer_mouse_fallback.h"
 #else
-bool           pointing_device_driver_init(void);
+void           pointing_device_driver_init(void);
 report_mouse_t pointing_device_driver_get_report(report_mouse_t mouse_report);
 uint16_t       pointing_device_driver_get_cpi(void);
 void           pointing_device_driver_set_cpi(uint16_t cpi);

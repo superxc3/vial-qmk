@@ -207,20 +207,18 @@ uint8_t               digitizer_active_contacts     = 0;
 static report_mouse_t digitizer_get_mouse_report(report_mouse_t _mouse_report);
 static uint16_t       digitizer_get_cpi(void);
 static void           digitizer_set_cpi(uint16_t cpi);
-static bool           digitizer_mouse_fallback_init(void);
+static void           digitizer_mouse_fallback_init(void);
 
 const pointing_device_driver_t digitizer_pointing_device_driver = {.init = digitizer_mouse_fallback_init, .get_report = digitizer_get_mouse_report, .get_cpi = digitizer_get_cpi, .set_cpi = digitizer_set_cpi};
 
 /**
- * @brief Initialize the pointing device driver. If this function does not return true, the pointing device
- * is not usable.
- *
- * @return report_mouse_t
+ * @brief Initialize the pointing device driver.
  */
-static bool digitizer_mouse_fallback_init(void)
+static void digitizer_mouse_fallback_init(void)
 {
-    // TODO: Return false here, if we have a physical digitizer device and its initialization failed.
-    return true;
+    // Status is set to SUCCESS by pointing_device_init() after this returns.
+    // pointing_device_set_status(POINTING_DEVICE_STATUS_INIT_FAILED) can be called
+    // here if hardware initialization fails.
 }
 
 /**
