@@ -35,10 +35,11 @@
 #define I2C_DRIVER I2CD1
 #define I2C1_SDA_PIN GP2
 #define I2C1_SCL_PIN GP3
+#define I2C1_CLOCK_SPEED 1000000  // 1MHz FM+ (boards use 4.7kΩ pull-ups; safe with ≤60mm FPC)
 
 
 #define AZOTEQ_IQS5XX_TPS65
-#define AZOTEQ_IQS5XX_REPORT_RATE 20
+#define AZOTEQ_IQS5XX_REPORT_RATE 9
 #define AZOTEQ_IQS5XX_ROTATION_270 /*for tps65*/
 #define DIGITIZER_TASK_THROTTLE_MS (AZOTEQ_IQS5XX_REPORT_RATE + 1)
 //#define AZOTEQ_IQS5XX_ROTATION_90 /*for tps65 rotate version*/
@@ -50,14 +51,15 @@
 /* azoteq config: optimized for larger TPS65 dimensions */
 #define AZOTEQ_IQS5XX_HOLD_TIME 300 // Default 300 v3.02
 #define AZOTEQ_IQS5XX_SCROLL_INITIAL_DISTANCE 10 // Standard distance for larger TPS65 trackpad
-#define AZOTEQ_IQS5XX_PRESS_AND_HOLD_ENABLE true //(Optional) Emulates holding left click to select text.
-#define AZOTEQ_IQS5XX_TWO_FINGER_TAP_ENABLE true
+#define AZOTEQ_IQS5XX_PRESS_AND_HOLD_ENABLE false // Disabled: Windows PTP handles this natively; hardware gesture conflicts with PTP causing phantom drag
+#define AZOTEQ_IQS5XX_TWO_FINGER_TAP_ENABLE false // Disabled: Windows PTP handles 2-finger right-click natively; hardware gesture causes double right-click
 #define AZOTEQ_IQS5XX_SCROLL_ENABLE true
 #define AZOTEQ_IQS5XX_ZOOM_ENABLE true //(Optional) Enable zoom gestures Zoom Out (Mouse Button 7) / Zoom In (Mouse Button 8)
 // Zoom thresholds: TPS65 = 47.3 units/mm. Default initial=50 (~1mm) fires during normal scroll.
 // Raised to ~3mm initial so only deliberate pinch/spread triggers zoom, not scroll finger variation.
 #define AZOTEQ_IQS5XX_ZOOM_INITIAL_DISTANCE 150     // ~3.2mm span change to start zoom (default 50)
 #define AZOTEQ_IQS5XX_ZOOM_CONSECUTIVE_DISTANCE 80  // ~1.7mm per step once zoom is active (default 25)
+#define AZOTEQ_IQS5XX_MIN_STRENGTH 50               // Noise floor: ignore contacts with strength ≤50 to prevent phantom touches from EMI/capacitive noise
 // 1-finger hardware swipe disabled: indistinguishable from fast cursor movement, causes accidental
 // back/forward. Layer-based swipe (swipe2_layer) is the correct approach for deliberate swipe.
 #define AZOTEQ_IQS5XX_SWIPE_X_ENABLE false

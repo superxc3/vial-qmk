@@ -86,6 +86,12 @@
 #ifndef AZOTEQ_IQS5XX_ZOOM_CONSECUTIVE_DISTANCE
 #    define AZOTEQ_IQS5XX_ZOOM_CONSECUTIVE_DISTANCE 0x19
 #endif
+// Minimum finger strength to register as a real touch.
+// Increase in config.h (e.g. 50) to filter EMI/capacitive noise phantom contacts.
+// Default 0 preserves original behaviour for boards that don't override.
+#ifndef AZOTEQ_IQS5XX_MIN_STRENGTH
+#    define AZOTEQ_IQS5XX_MIN_STRENGTH 0
+#endif
 #ifndef AZOTEQ_IQS5XX_EVENT_MODE
 // Event mode can't be used until the pointing code has changed (stuck buttons)
 #    define AZOTEQ_IQS5XX_EVENT_MODE false
@@ -467,10 +473,11 @@ digitizer_t digitizer_driver_get_report(digitizer_t digitizer_report) {
         digitizer_gesture_x_delta = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.base.x.h, combined.base.x.l);
 
         for (int i = 0; i < 5; i++) {
+            uint16_t strength = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.fingers.fingers[i].strength.h, combined.fingers.fingers[i].strength.l);
             digitizer_report.contacts[i].x          = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.fingers.fingers[i].x.h, combined.fingers.fingers[i].x.l);
             digitizer_report.contacts[i].y          = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.fingers.fingers[i].y.h, combined.fingers.fingers[i].y.l);
             digitizer_report.contacts[i].confidence = 1;
-            digitizer_report.contacts[i].tip        = AZOTEQ_IQS5XX_COMBINE_H_L_BYTES(combined.fingers.fingers[i].strength.h, combined.fingers.fingers[i].strength.l) > 0 ? 1 : 0;
+            digitizer_report.contacts[i].tip        = strength > AZOTEQ_IQS5XX_MIN_STRENGTH ? 1 : 0;
             digitizer_report.contacts[i].type       = FINGER;
         }
         azoteq_iqs5xx_end_session();
