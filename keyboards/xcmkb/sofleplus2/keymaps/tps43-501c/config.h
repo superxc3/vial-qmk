@@ -20,8 +20,7 @@
 
 #pragma once
 
-
-#define EE_HANDS //since now only left
+#define EE_HANDS //since now only left 
 //#define MASTER_LEFT
 //#define MASTER_RIGHT
 #define USB_VBUS_PIN GP19
@@ -38,11 +37,13 @@
 #define I2C1_CLOCK_SPEED 1000000  // 1MHz FM+ (boards use 4.7kΩ pull-ups; safe with ≤60mm FPC)
 
 
-#define AZOTEQ_IQS5XX_TPS65
+//#define AZOTEQ_IQS5XX_TPS65
 #define AZOTEQ_IQS5XX_REPORT_RATE 9
-#define AZOTEQ_IQS5XX_ROTATION_270 /*for tps65*/
+//#define AZOTEQ_IQS5XX_ROTATION_270 /*for tps65*/
 #define DIGITIZER_TASK_THROTTLE_MS (AZOTEQ_IQS5XX_REPORT_RATE + 1)
 //#define AZOTEQ_IQS5XX_ROTATION_90 /*for tps65 rotate version*/
+#define AZOTEQ_IQS5XX_TPS43
+#define AZOTEQ_IQS5XX_ROTATION_180 /*for tps43*/
 
 
 
@@ -50,12 +51,12 @@
 // https://github.com/qmk/qmk_firmware/blob/master/docs/feature_pointing_device.md#gesture-settings
 /* azoteq config: optimized for larger TPS65 dimensions */
 #define AZOTEQ_IQS5XX_HOLD_TIME 300 // Default 300 v3.02
-#define AZOTEQ_IQS5XX_SCROLL_INITIAL_DISTANCE 10 // Standard distance for larger TPS65 trackpad
+#define AZOTEQ_IQS5XX_SCROLL_INITIAL_DISTANCE 10 // ~0.21mm (TPS43: 47.6 units/mm; same physical distance as TPS65 — resolution per mm is identical)
 #define AZOTEQ_IQS5XX_PRESS_AND_HOLD_ENABLE false // Disabled: Windows PTP handles this natively; hardware gesture conflicts with PTP causing phantom drag
 #define AZOTEQ_IQS5XX_TWO_FINGER_TAP_ENABLE false // Disabled: Windows PTP handles 2-finger right-click natively; hardware gesture causes double right-click
 #define AZOTEQ_IQS5XX_SCROLL_ENABLE true
 #define AZOTEQ_IQS5XX_ZOOM_ENABLE true //(Optional) Enable zoom gestures Zoom Out (Mouse Button 7) / Zoom In (Mouse Button 8)
-// Zoom thresholds: TPS65 = 47.3 units/mm. Default initial=50 (~1mm) fires during normal scroll.
+// Zoom thresholds: TPS43 = 47.6 units/mm. Default initial=50 (~1mm) fires during normal scroll.
 // Raised to ~3mm initial so only deliberate pinch/spread triggers zoom, not scroll finger variation.
 #define AZOTEQ_IQS5XX_ZOOM_INITIAL_DISTANCE 150     // ~3.2mm span change to start zoom (default 50)
 #define AZOTEQ_IQS5XX_ZOOM_CONSECUTIVE_DISTANCE 80  // ~1.7mm per step once zoom is active (default 25)
@@ -66,14 +67,15 @@
 #define AZOTEQ_IQS5XX_SWIPE_Y_ENABLE false
 
 /* macOS-friendly 3-finger swipe keycodes (mouse fallback mode only, Windows PTP unaffected) */
-/* TPS65 uses ROTATION_270 — no axis reversal needed for swipe keycodes */
+/* Swipe left/right are reversed because TPS43 uses ROTATION_180 which flips X axis */
 #define DIGITIZER_SWIPE_UP_KC    LCTL(KC_UP)     // macOS Mission Control
 #define DIGITIZER_SWIPE_DOWN_KC  LCTL(KC_DOWN)   // macOS App Exposé
-#define DIGITIZER_SWIPE_LEFT_KC  LCTL(KC_LEFT)   // macOS Previous Desktop
-#define DIGITIZER_SWIPE_RIGHT_KC LCTL(KC_RIGHT)  // macOS Next Desktop
+#define DIGITIZER_SWIPE_LEFT_KC  LCTL(KC_RIGHT)  // macOS Next Desktop (reversed for ROTATION_180)
+#define DIGITIZER_SWIPE_RIGHT_KC LCTL(KC_LEFT)   // macOS Previous Desktop (reversed for ROTATION_180)
 
-/* Mouse fallback tuning for macOS */
+/* Mouse fallback tuning for macOS (ROTATION_180 flips axes) */
 #define DIGITIZER_SCROLL_INVERT true            // Natural scrolling for macOS
+
 
 
 
@@ -83,7 +85,7 @@
   // Reset OS detection when keyboard resets/reconnects
   #define OS_DETECTION_KEYBOARD_RESET
 
-  // Only send one report per OS detection cycle
+  // Only send one report per OS detection cycle  
   #define OS_DETECTION_SINGLE_REPORT
 
   // Extended timeouts to prevent login loops on Linux systems
@@ -101,11 +103,11 @@
 
 /* Keyboard name override for this keymap */
 #undef PRODUCT
-#define PRODUCT "SoflePLUS2 v5.01b TPS65"
+#define PRODUCT "SoflePLUS2 v5.01c TPS43"
 
 
 
 /* Vial UID for this specific keymap */
 #ifdef VIAL_ENABLE
-#define VIAL_KEYBOARD_UID {0xA3, 0x5F, 0x2B, 0x8D, 0x4E, 0x1C, 0x73, 0x96}
+#define VIAL_KEYBOARD_UID {0x12, 0x38, 0x7D, 0x9C, 0x1C, 0x0E, 0x58, 0x65}
 #endif

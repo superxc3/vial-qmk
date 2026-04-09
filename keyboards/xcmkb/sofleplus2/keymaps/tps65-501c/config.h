@@ -101,11 +101,11 @@
 
 /* Keyboard name override for this keymap */
 #undef PRODUCT
-#define PRODUCT "SoflePLUS2 v5.01b TPS65"
+#define PRODUCT "SoflePLUS2 v5.01c TPS65"
 
 
 
 /* Vial UID for this specific keymap */
 #ifdef VIAL_ENABLE
-#define VIAL_KEYBOARD_UID {0xA3, 0x5F, 0x2B, 0x8D, 0x4E, 0x1C, 0x73, 0x96}
+#define VIAL_KEYBOARD_UID {0xC4, 0x71, 0x3E, 0xA9, 0x56, 0x2F, 0x87, 0xD1}
 #endif
