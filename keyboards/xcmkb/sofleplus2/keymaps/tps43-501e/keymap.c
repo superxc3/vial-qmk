@@ -1679,16 +1679,16 @@ static void render_wid_anim_calcifer(uint8_t row) {
     oled_write_raw_P(calcifer_frames[frame], CALCIFER_FRAME_SIZE);  /* 5 rows = 160 bytes */
 }
 
-/* WID_ANIM_SPACE: 4-row scrolling starfield + ship overlay.                */
-/* space_row_*/ship_row_*/mask_row_* are 128 bytes each (portrait: read      */
-/* 32 bytes at offset for scrolling, ship data lives in bytes 0-31).        */
-static void render_wid_anim_space(uint8_t row) {
-    static uint32_t timer = 0;
-    static uint8_t  offset = 0;
+/* WID_ANIM_SPACE: full-screen (16-row) scrolling starfield with ship.      */
+/* space_row_1..4 are 128-byte buffers; portrait reads 32 bytes at offset.  */
+/* Ship (ship_row_1..4, mask_row_1..4) is centered at portrait rows 6-9.   */
+static void render_wid_anim_space(uint8_t start_row) {
+    static uint32_t timer  = 0;
+    static uint8_t  scroll = 0;
 
-    if (timer_elapsed32(timer) > 100) {
+    if (timer_elapsed32(timer) > 80) {
         timer  = timer_read32();
-        offset = (offset + 1) & 0x7F;  /* 0-127 */
+        scroll = (scroll + 1) & 0x7F;
     }
 
     const uint8_t *space_rows[4] = { space_row_1, space_row_2, space_row_3, space_row_4 };
@@ -1696,15 +1696,21 @@ static void render_wid_anim_space(uint8_t row) {
     const uint8_t *mask_rows[4]  = { mask_row_1,  mask_row_2,  mask_row_3,  mask_row_4  };
 
     char buf[32];
-    for (uint8_t r = 0; r < 4; r++) {
-        oled_set_cursor(0, row + r);
+    for (uint8_t r = 0; r < 16; r++) {
+        oled_set_cursor(0, start_row + r);
+        const uint8_t *sp = space_rows[r & 3];
+        uint8_t off = (scroll + (r << 3)) & 0x7F;
         for (uint8_t i = 0; i < 32; i++) {
-            uint8_t src = (i + offset) & 0x7F;
-            uint8_t bg  = pgm_read_byte(space_rows[r] + src);
-            /* Ship overlay in the fixed window bytes 0-31 */
-            uint8_t msk = pgm_read_byte(mask_rows[r]  + i);
-            uint8_t shp = pgm_read_byte(ship_rows[r]  + i);
-            buf[i] = (char)((bg & msk) | shp);
+            buf[i] = (char)pgm_read_byte(sp + ((i + off) & 0x7F));
+        }
+        /* Ship overlay on portrait rows 6-9 */
+        if (r >= 6 && r <= 9) {
+            uint8_t sr = r - 6;
+            for (uint8_t i = 0; i < 32; i++) {
+                uint8_t msk = pgm_read_byte(mask_rows[sr] + i);
+                uint8_t shp = pgm_read_byte(ship_rows[sr] + i);
+                buf[i] = (char)(((uint8_t)buf[i] & msk) | shp);
+            }
         }
         oled_write_raw(buf, 32);
     }
@@ -1715,7 +1721,7 @@ static uint8_t widget_rows(uint8_t wid) {
     if (wid == WID_GESTURE_BMP)  return 2;
     if (wid == WID_LAYER_NUM)    return 4;
     if (wid == WID_ANIM_CALCIFER) return 5;
-    if (wid == WID_ANIM_SPACE)   return 4;
+    if (wid == WID_ANIM_SPACE)   return 16;
     return 1;
 }
 
