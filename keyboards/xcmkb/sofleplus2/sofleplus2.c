@@ -1,5 +1,12 @@
 #include "sofleplus2.h"
 
+// RP2040 PAD register: slow down GP0 (WS2812 DIN) output edges.
+// Without C17630 (330Ω series resistor on DIN), fast GPIO edges radiate onto
+// adjacent I2C traces (GP2/GP3), corrupting LED data during IQS5xx touch reads
+// and causing slave-side LED flicker + OLED noise.
+// 2mA drive + slow slew ≈ equivalent EMI suppression to a 330Ω series resistor.
+
+
 //following for dragscroll
 /*
 #include <stdbool.h>

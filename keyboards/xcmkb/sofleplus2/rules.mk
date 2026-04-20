@@ -18,6 +18,7 @@ WS2812_DRIVER = vendor
 ################## BASIC ##################
 
 SPLIT_KEYBOARD = yes
+SPLIT_ACTIVITY_ENABLE = yes     # Sync master activity timestamps to slave so slave RGB timeout uses trackpad events, not just slave keypresses
 BOOTMAGIC_ENABLE = yes      # Enable Bootmagic Lite， This is great for boards that don't have a physical reset button
 EXTRAKEY_ENABLE = yes       # Audio control and System control
 CONSOLE_ENABLE = yes         # Console for debug
