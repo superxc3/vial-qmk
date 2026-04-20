@@ -326,6 +326,14 @@ bool digitizer_task(void) {
 #ifdef DIGITIZER_HAS_STYLUS
     return report.contact_count > 0 || button_state_changed || updated_stylus;
 #else
+#    if defined(POINTING_DEVICE_DRIVER_digitizer)
+    // pointing_device_task() already triggers activity on real mouse movement/buttons.
+    // Returning true here on bare contact_count lets phantom contacts (USB cable EMI,
+    // strength just above MIN_STRENGTH) continuously fire last_pointing_device_activity_trigger()
+    // every 10ms, preventing RGB/OLED from ever reaching the idle timeout.
+    return button_state_changed;
+#    else
     return report.contact_count > 0 || button_state_changed;
+#    endif
 #endif
 }
