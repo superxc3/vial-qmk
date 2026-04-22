@@ -91,6 +91,8 @@ __attribute__((unused)) static void tap_via_key(keypos_t key) { }
     SNIPER_SHOW_MODS,
     OS_DETECTION_TOGGLE,
     ZMTOG,
+    AP_GLOB,
+    TP_INFO,
     };
 #else
     enum custom_keycodes {
@@ -120,6 +122,8 @@ __attribute__((unused)) static void tap_via_key(keypos_t key) { }
     SNIPER_SHOW_MODS,
     OS_DETECTION_TOGGLE,
     ZMTOG,
+    AP_GLOB,
+    TP_INFO,
     };
 #endif
 
@@ -197,8 +201,8 @@ os_variant_t get_effective_os_detection(void) {
 // 0x1070-0x1071: Indicator config magic (0x494Du = 'IM')
 // 0x1072-0x10DB: indicator_config_t (110 bytes: role_masks[10]*8 + colors[10][3])
 // 0x10DC-0x10DF: reserved gap
-// 0x10E0-0x10E1: OLED config magic (0x4F4Cu = 'OL')
-// 0x10E2-0x1123: oled_config_t (66 bytes)
+// 0x10E0-0x10E1: OLED config magic (0x4F57u = 'OW' � OLED Widgets v2)
+// 0x10E2-0x1143: oled_config_t (98 bytes)
 #define EEPROM_SNIPER_SETTINGS_OFFSET    0x0FB0
 #define EEPROM_ZOOM_TOGGLE_OFFSET        0x0FB2
 #define EEPROM_OS_DETECTION_OFFSET       0x0FB3
@@ -384,18 +388,47 @@ typedef struct {
 
 static indicator_config_t g_indicator_config;  /* zero-init; filled by indicator_config_init_defaults */
 
-/* OLED label config — row1 + one name per layer, all max 5 chars + null */
+/* Widget IDs for OLED slot assignments (both screens use portrait 5×16 layout) */
+#define WID_BLANK         0x00
+#define WID_KB_NAME       0x01
+#define WID_OS_DETECT     0x02
+#define WID_NUM_LOCK      0x03
+#define WID_CAPS_LOCK     0x04
+#define WID_LAYER_NAME    0x05
+#define WID_DPI           0x06
+#define WID_SCROLL_SPD    0x07
+#define WID_TRK_MODE      0x08
+#define WID_WPM           0x0A
+#define WID_GESTURE_BMP   0x10
+#define WID_LAYER_NUM     0x20
+#define WID_ANIM_CALCIFER 0x30
+
 typedef struct {
-    char row1[6];           /* keyboard name shown on OLED row 1 (default "SOFLE") */
-    char layer_names[10][6]; /* one 5-char label per layer (default "L0".."L9")   */
-} __attribute__((packed)) oled_config_t;
+    char    row1[6];
+    char    layer_names[10][6];
+    uint8_t screen_a[16];
+    uint8_t screen_b[16];
+} __attribute__((packed)) oled_config_t;  /* 66 + 32 = 98 bytes */
 
 static oled_config_t g_oled_config = {
     .row1 = "SOFLE",
     .layer_names = {
         "L0   ", "L1   ", "L2   ", "L3   ", "L4   ",
         "L5   ", "L6   ", "L7   ", "L8   ", "L9   "
-    }
+    },
+    .screen_a = {
+        WID_BLANK, WID_KB_NAME, WID_OS_DETECT, WID_NUM_LOCK,
+        WID_GESTURE_BMP, WID_TRK_MODE, WID_BLANK, WID_DPI,
+        WID_SCROLL_SPD, WID_LAYER_NAME, WID_BLANK, WID_LAYER_NUM,
+        WID_BLANK, WID_BLANK, WID_BLANK, WID_BLANK,
+    },
+    .screen_b = {
+        WID_ANIM_CALCIFER,
+        WID_BLANK, WID_BLANK, WID_BLANK, WID_BLANK,
+        WID_BLANK, WID_BLANK, WID_BLANK, WID_BLANK,
+        WID_BLANK, WID_BLANK, WID_BLANK, WID_BLANK,
+        WID_BLANK, WID_BLANK, WID_BLANK,
+    },
 };
 
 static void save_oled_config(void) {
@@ -447,6 +480,23 @@ void vialrgb_get_indicator_colors_user(uint8_t *out) {
 /* g_indicator_sync_needed: set true on boot and whenever indicator config changes.
  * housekeeping_task_user() will push the config to the slave when this is true. */
 static bool g_indicator_sync_needed = true;
+
+/* TP_INFO: one-shot RPC from master — pushes current trackpad/OS state to slave OLED */
+#define TP_INFO_DURATION_MS 5000
+typedef struct {
+    uint8_t os_variant;
+    bool    ptp_mode;
+    bool    trackpad_on;
+    uint8_t gesture_mode;  // 0=CURSR 1=SCROL 2=2SWPE 3=3SWPE
+    uint8_t dpi;
+    uint8_t sniper_dpi;
+    uint8_t scroll_spd;
+    bool    sniper_active;
+} tp_info_payload_t;
+static tp_info_payload_t g_tp_info_data         = {0};
+static bool              tp_info_active         = false;
+static uint32_t          tp_info_timer          = 0;
+static bool              g_tp_info_send_pending = false;
 
 void vialrgb_set_indicator_leds_user(uint8_t role_idx, const uint8_t *mask_bytes) {
     /* Receives 8 bytes: little-endian uint64 bitmask for the given role. */
@@ -525,33 +575,52 @@ void vialrgb_set_trackpad_layers_user(const uint8_t *args) {
     trackpad_config_save();
 }
 
-/* Sub-ID 0x52 — OLED label get/set.
- * item=0xFF → row1 (keyboard name); item=0-9 → layer name for that layer.
- * name_out / name_in: 5-byte buffer (null-padded, NOT null-terminated by caller). */
+/* Slave OLED: widget slots synced from master via split transport */
+static uint8_t g_slave_oled_slots[16];
+static bool g_oled_sync_needed = true;
+
+static void oled_screen_b_sync_handler(uint8_t in_buflen, const void *in_data,
+                                        uint8_t out_buflen, void *out_data) {
+    if (in_buflen >= 16) memcpy(g_slave_oled_slots, in_data, 16);
+}
+
+/* Sub-ID 0x52 — OLED config get/set. */
 void vialrgb_get_oled_config_user(uint8_t item, char *name_out) {
-    const char *src = NULL;
     if (item == 0xFF) {
-        src = g_oled_config.row1;
+        strncpy(name_out, g_oled_config.row1, 5); name_out[5] = '\0';
     } else if (item < 10) {
-        src = g_oled_config.layer_names[item];
-    }
-    if (src) {
-        strncpy(name_out, src, 5);
-        name_out[5] = '\0';
+        strncpy(name_out, g_oled_config.layer_names[item], 5); name_out[5] = '\0';
+    } else if (item >= 0xF0 && item <= 0xF7) {
+        /* 0xF0-0xF3 → screen_a[0..15], 0xF4-0xF7 → screen_b[0..15] (5 bytes/chunk) */
+        bool is_b = (item >= 0xF4);
+        uint8_t idx = (is_b ? (item - 0xF4) : (item - 0xF0)) * 5;
+        uint8_t *src = is_b ? &g_oled_config.screen_b[idx]
+                            : &g_oled_config.screen_a[idx];
+        uint8_t len = (idx + 5 <= 16) ? 5 : (uint8_t)(16 - idx);  /* last chunk: 1 byte */
+        memcpy(name_out, src, len);
+        memset(name_out + len, 0, 5 - len);
     }
 }
 
 void vialrgb_set_oled_config_user(uint8_t item, const char *name_in) {
-    char *dst = NULL;
     if (item == 0xFF) {
-        dst = g_oled_config.row1;
-    } else if (item < 10) {
-        dst = g_oled_config.layer_names[item];
-    }
-    if (dst) {
-        strncpy(dst, name_in, 5);
-        dst[5] = '\0';
+        strncpy(g_oled_config.row1, name_in, 5);
+        g_oled_config.row1[5] = '\0';
         save_oled_config();
+    } else if (item < 10) {
+        strncpy(g_oled_config.layer_names[item], name_in, 5);
+        g_oled_config.layer_names[item][5] = '\0';
+        save_oled_config();
+    } else if (item >= 0xF0 && item <= 0xF7) {
+        /* 0xF0-0xF3 → screen_a[0..15], 0xF4-0xF7 → screen_b[0..15] (5 bytes/chunk) */
+        bool is_b = (item >= 0xF4);
+        uint8_t idx = (is_b ? (item - 0xF4) : (item - 0xF0)) * 5;
+        uint8_t *dst = is_b ? &g_oled_config.screen_b[idx]
+                            : &g_oled_config.screen_a[idx];
+        uint8_t len = (idx + 5 <= 16) ? 5 : (uint8_t)(16 - idx);
+        memcpy(dst, name_in, len);
+        save_oled_config();
+        g_oled_sync_needed = true;
     }
 }
 
@@ -573,6 +642,15 @@ void vialrgb_save_user(void) {
                        sizeof(indicator_config_t));
 }
 #endif
+
+static void tp_info_sync_handler(uint8_t in_buflen, const void *in_data,
+                                  uint8_t out_buflen, void *out_data) {
+    if (in_buflen >= sizeof(tp_info_payload_t)) {
+        memcpy(&g_tp_info_data, in_data, sizeof(tp_info_payload_t));
+        tp_info_active = true;
+        tp_info_timer  = timer_read32();
+    }
+}
 
 // ==================== Housekeeping ====================
 
@@ -608,8 +686,38 @@ void housekeeping_task_user(void) {
                 last_indicator_sync = timer_read32();
             }
         }
+        static uint32_t last_oled_sync = 0;
+        if (g_oled_sync_needed || timer_elapsed32(last_oled_sync) >= 3000) {
+            if (transaction_rpc_exec(OLED_SCREEN_B_SYNC,
+                                     sizeof(g_oled_config.screen_b),
+                                     g_oled_config.screen_b,
+                                     0, NULL)) {
+                g_oled_sync_needed = false;
+                last_oled_sync = timer_read32();
+            }
+        }
     }
 #endif
+
+    /* TP_INFO: fire once when keycode pressed, send current master state to slave */
+    if (is_keyboard_master() && g_tp_info_send_pending) {
+        uint8_t layer = get_highest_layer(layer_state);
+        tp_info_payload_t payload = {
+            .os_variant    = (uint8_t)detected_host_os(),
+            .ptp_mode      = !digitizer_send_mouse_reports,
+            .trackpad_on   = trackpad_enabled,
+            .sniper_active = sniper_mode_active,
+            .dpi           = (uint8_t)digitizer_get_mouse_scale(),
+            .sniper_dpi    = (uint8_t)digitizer_get_sniper_scale(),
+            .scroll_spd    = (uint8_t)scroll_speed,
+            .gesture_mode  = (user_config.scroll_layers  & (1 << layer)) ? 1 :
+                             (user_config.swipe2_layers  & (1 << layer)) ? 2 :
+                             (user_config.swipe3_layers  & (1 << layer)) ? 3 : 0,
+        };
+        if (transaction_rpc_exec(TP_INFO_SYNC, sizeof(payload), &payload, 0, NULL)) {
+            g_tp_info_send_pending = false;
+        }
+    }
 
     /* ---- Runtime bootloader trigger ----
      * Hold the 3 outermost top-row keys on this half for 3 s to enter the bootloader.
@@ -893,9 +1001,12 @@ void keyboard_post_init_user(void) {
     load_oled_config();
     os_detection_settings_init();
 
+    transaction_register_rpc(TP_INFO_SYNC, tp_info_sync_handler);
+
 #if defined(VIALRGB_ENABLE) && !defined(VIALRGB_NO_DIRECT)
     transaction_register_rpc(VIALRGB_DIRECT_SYNC, vialrgb_direct_sync_handler);
     transaction_register_rpc(VIALRGB_INDICATOR_SYNC, vialrgb_indicator_sync_handler);
+    transaction_register_rpc(OLED_SCREEN_B_SYNC, oled_screen_b_sync_handler);
 
     /* Load saved per-key colors from EEPROM. */
     if (eeprom_read_word((const uint16_t *)EEPROM_VIALRGB_COLORS_MAGIC_OFFSET)
@@ -1390,6 +1501,20 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 save_zoom_setting();
             }
             break;
+
+        case AP_GLOB:
+            if (record->event.pressed) {
+                host_consumer_send(AC_NEXT_KEYBOARD_LAYOUT_SELECT);
+            } else {
+                host_consumer_send(0);
+            }
+            return false;
+
+        case TP_INFO:
+            if (record->event.pressed) {
+                g_tp_info_send_pending = true;
+            }
+            return false;
     }
 
     return true;
@@ -1410,39 +1535,32 @@ void suspend_wakeup_init_user(void) {
 #ifdef OLED_ENABLE
 
 #include "oled_data.h"
+#include "calcifer_data.h"
 
-
-unsigned int animation_state = 0;
-
-// Gesture bitmaps (32x11px each, stored as 64 bytes per bitmap)
 static const char PROGMEM gesture_2finger[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xe0, 0xf8, 0xfe, 0xf8, 0xe0, 0x80, 0x0c,
     0x34, 0x44, 0x84, 0x04, 0x84, 0x44, 0x34, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x00, 0x00, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-
 static const char PROGMEM gesture_3finger[] = {
     0x00, 0x00, 0x00, 0x00, 0x80, 0xe0, 0xf8, 0xfe, 0xf8, 0xe0, 0x80, 0x0c, 0x34, 0x44, 0x84, 0x04,
     0x84, 0x44, 0x34, 0x0c, 0x80, 0xe0, 0xf8, 0xfe, 0xf8, 0xe0, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x01, 0x02,
     0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00
 };
-
 static const char PROGMEM gesture_default[] = {
     0x00, 0x20, 0x20, 0x70, 0xf8, 0xfc, 0xfe, 0x00, 0x00, 0x80, 0xe0, 0xf8, 0xfe, 0xf8, 0xe0, 0x84,
     0x0c, 0x3c, 0xfc, 0xfc, 0xfc, 0x3c, 0x0c, 0x04, 0x00, 0xfe, 0xfc, 0xf8, 0x70, 0x20, 0x20, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-
 static const char PROGMEM gesture_scroll[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xe0, 0xf8, 0xfe, 0xf8, 0xe0, 0x80, 0x04,
     0x0c, 0x3c, 0xfc, 0xfc, 0xfc, 0x3c, 0x0c, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-
 static const char gesture_blank[64] PROGMEM = {0};
 
 static const char* get_trackpad_gesture_bitmap(uint8_t layer) {
@@ -1452,232 +1570,232 @@ static const char* get_trackpad_gesture_bitmap(uint8_t layer) {
     return gesture_default;
 }
 
-static void render_space(void) {
-    char wpm = get_current_wpm();
-    uint8_t render_row[128];
-    int i;
+static bool is_ptp_mode(void) { return !digitizer_send_mouse_reports; }
 
-    oled_set_cursor(0,0);
-    for(i=0; i<wpm/4; i++) render_row[i] = pgm_read_byte(space_row_1+i+animation_state);
-    for(i=wpm/4; i<128; i++) render_row[i] = (pgm_read_byte(space_row_1+i+animation_state) & pgm_read_byte(mask_row_1+i-wpm/4)) | pgm_read_byte(ship_row_1+i-wpm/4);
-    oled_write_raw((const char*)render_row, 128);
-
-    oled_set_cursor(0,1);
-    for(i=0; i<wpm/4; i++) render_row[i] = pgm_read_byte(space_row_2+i+animation_state);
-    for(i=wpm/4; i<128; i++) render_row[i] = (pgm_read_byte(space_row_2+i+animation_state) & pgm_read_byte(mask_row_2+i-wpm/4)) | pgm_read_byte(ship_row_2+i-wpm/4);
-    oled_write_raw((const char*)render_row, 128);
-
-    oled_set_cursor(0,2);
-    for(i=0; i<wpm/4; i++) render_row[i] = pgm_read_byte(space_row_3+i+animation_state);
-    for(i=wpm/4; i<128; i++) render_row[i] = (pgm_read_byte(space_row_3+i+animation_state) & pgm_read_byte(mask_row_3+i-wpm/4)) | pgm_read_byte(ship_row_3+i-wpm/4);
-    oled_write_raw((const char*)render_row, 128);
-
-    oled_set_cursor(0,3);
-    for(i=0; i<wpm/4; i++) render_row[i] = pgm_read_byte(space_row_4+i+animation_state);
-    for(i=wpm/4; i<128; i++) render_row[i] = (pgm_read_byte(space_row_4+i+animation_state) & pgm_read_byte(mask_row_4+i-wpm/4)) | pgm_read_byte(ship_row_4+i-wpm/4);
-    oled_write_raw((const char*)render_row, 128);
-
-    animation_state = (animation_state + 1 + (wpm/15)) % (128*2);
+static void render_wid_kb_name(void) {
+    for (uint8_t i = 0; i < 5; i++)
+        oled_write_char(g_oled_config.row1[i] ? g_oled_config.row1[i] : ' ', false);
 }
-
-uint32_t anim_sleep = 0;
-
-
-// Large layer number display
-static void display_large_layer_number(uint8_t layer) {
-    const uint8_t* bitmap = NULL;
-    switch (layer) {
-        case 0: bitmap = digit_0; break;
-        case 1: bitmap = digit_1; break;
-        case 2: bitmap = digit_2; break;
-        case 3: bitmap = digit_3; break;
-        case 4: bitmap = digit_4; break;
-        case 5: bitmap = digit_5; break;
-        case 6: bitmap = digit_6; break;
-        case 7: bitmap = digit_7; break;
-        case 8: bitmap = digit_8; break;
-        case 9: bitmap = digit_9; break;
-        default: bitmap = digit_0; break;
-    }
-    if (bitmap) {
-        oled_set_cursor(0, 12);
-        oled_write_raw_P((const char*)bitmap, 128);
+static void render_wid_os_detect(void) {
+    if (!os_detection_enabled) { oled_write_P(PSTR("PLUS+"), false); return; }
+    switch (detected_host_os()) {
+        case OS_MACOS: case OS_IOS: oled_write_P(PSTR(" MAC "), false); break;
+        case OS_WINDOWS:            oled_write_P(PSTR(" WIN "), false); break;
+        case OS_LINUX:              oled_write_P(PSTR(" LNX "), false); break;
+        default:                    oled_write_P(PSTR("PLUS+"), false); break;
     }
 }
-
-// Determine if we are in PTP mode (Windows/Linux sends PTP feature report)
-static bool is_ptp_mode(void) {
-    return !digitizer_send_mouse_reports;
+static void render_wid_num_lock(void) {
+    oled_write_P(host_keyboard_led_state().num_lock ? PSTR("NUMLK") : PSTR("     "), false);
 }
-
-static void print_status_narrow(void) {
-    uint8_t current_layer = get_highest_layer(layer_state);
-
-    /* Row 1: configurable keyboard name (default "SOFLE") */
-    oled_set_cursor(0, 1);
-    for (uint8_t _i = 0; _i < 5; _i++)
-        oled_write_char(g_oled_config.row1[_i] ? g_oled_config.row1[_i] : ' ', false);
-
-    /* Row 2: OS detection status */
-    oled_set_cursor(0, 2);
-    if (!os_detection_enabled) {
-        oled_write("PLUS+", false);
+static void render_wid_caps_lock(void) {
+    oled_write_P(host_keyboard_led_state().caps_lock ? PSTR("CAPLK") : PSTR("     "), false);
+}
+static void render_wid_layer_name(void) {
+    uint8_t layer = get_highest_layer(layer_state);
+    const char *ln = g_oled_config.layer_names[layer < 10 ? layer : 0];
+    for (uint8_t i = 0; i < 5; i++) oled_write_char(ln[i] ? ln[i] : ' ', false);
+}
+static void render_wid_dpi(void) {
+    char buf[4];
+    if (sniper_mode_active) {
+        oled_write_P(PSTR("SNP "), false);
+        snprintf(buf, sizeof(buf), "%d", digitizer_get_sniper_scale());
     } else {
-        os_variant_t detected_os = detected_host_os();
-        switch (detected_os) {
-            case OS_MACOS:
-            case OS_IOS:
-                oled_write(" MAC ", false);
-                break;
-            case OS_WINDOWS:
-                oled_write(" WIN ", false);
-                break;
-            case OS_LINUX:
-                oled_write(" LNX ", false);
-                break;
-            default:
-                oled_write("PLUS+", false);
-                break;
-        }
+        oled_write_P(PSTR("DPI "), false);
+        snprintf(buf, sizeof(buf), "%d", digitizer_get_mouse_scale());
     }
-
-    /* Row 3: Numlock indicator */
-    oled_set_cursor(0, 3);
-    led_t led_usb_state = host_keyboard_led_state();
-    if (led_usb_state.num_lock) {
-        oled_write_P(PSTR("NUMLK"), false);
-    } else {
-        oled_write_P(PSTR("     "), false);
-    }
-
-    /* Row 4: Gesture bitmap (only in mouse fallback mode) */
-    oled_set_cursor(0, 4);
+    oled_write(buf, false);
+}
+static void render_wid_scroll_spd(void) {
+    char buf[4];
+    oled_write_P(PSTR("SCR "), false);
+    snprintf(buf, sizeof(buf), "%d", scroll_speed);
+    oled_write(buf, false);
+}
+static void render_wid_wpm(void) {
+    char buf[4];
+    oled_write_P(PSTR("WPM "), false);
+    snprintf(buf, sizeof(buf), "%d", get_current_wpm());
+    oled_write(buf, false);
+}
+static void render_wid_trk_mode(void) {
+    uint8_t layer = get_highest_layer(layer_state);
     if (is_ptp_mode()) {
-        oled_write_raw_P(gesture_blank, 64);
-    } else if (trackpad_enabled && !sniper_learning_mode && !sniper_info_mode) {
-        const char* gesture_bitmap = get_trackpad_gesture_bitmap(current_layer);
-        oled_write_raw_P(gesture_bitmap, 64);
-    } else {
-        oled_write_raw_P(gesture_blank, 64);
-    }
-
-    /* Clear text rows 6-9 */
-    oled_set_cursor(0, 6);
-    oled_write_P(PSTR("     "), false);
-    oled_set_cursor(0, 7);
-    oled_write_P(PSTR("     "), false);
-    oled_set_cursor(0, 8);
-    oled_write_P(PSTR("     "), false);
-    oled_set_cursor(0, 9);
-    oled_write_P(PSTR("     "), false);
-
-    if (is_ptp_mode()) {
-        /* PTP mode: Windows or Linux handles gestures natively */
-        oled_set_cursor(0, 6);
         oled_write_P(PSTR(" PTP "), false);
-    } else if (trackpad_enabled) {
-        if (sniper_learning_mode) {
-            oled_set_cursor(0, 6);
-            oled_write_P(PSTR("LEARN"), false);
-            oled_set_cursor(0, 7);
-            oled_write_P(PSTR("SNIPE"), false);
-            oled_set_cursor(0, 8);
-            oled_write_P(PSTR("HOLD"), false);
-            oled_set_cursor(0, 9);
-            oled_write_P(PSTR("MODS"), false);
-        } else {
-            /* Gesture mode label */
-            oled_set_cursor(0, 6);
-            if (user_config.scroll_layers & (1 << current_layer)) {
-                oled_write_P(PSTR("SCROL"), false);
-            } else if (user_config.swipe2_layers & (1 << current_layer)) {
-                oled_write_P(PSTR("2SWPE"), false);
-            } else if (user_config.swipe3_layers & (1 << current_layer)) {
-                oled_write_P(PSTR("3SWPE"), false);
-            } else {
-                oled_write_P(PSTR("CURSR"), false);
-            }
-
-            /* Cursor speed (DPI) */
-            oled_set_cursor(0, 8);
-            if (sniper_mode_active) {
-                oled_write_P(PSTR("SNP"), false);
-                oled_set_cursor(3, 8);
-                char speed_str[4];
-                snprintf(speed_str, sizeof(speed_str), "%d", digitizer_get_sniper_scale());
-                oled_write(speed_str, false);
-            } else {
-                oled_write_P(PSTR("DPI"), false);
-                oled_set_cursor(3, 8);
-                char speed_str[4];
-                snprintf(speed_str, sizeof(speed_str), "%d", digitizer_get_mouse_scale());
-                oled_write(speed_str, false);
-            }
-
-            /* Scroll speed */
-            oled_set_cursor(0, 9);
-            oled_write_P(PSTR("SCR"), false);
-            oled_set_cursor(3, 9);
-            char scr_str[4];
-            snprintf(scr_str, sizeof(scr_str), "%d", scroll_speed);
-            oled_write(scr_str, false);
-        }
-    } else {
-        oled_set_cursor(0, 6);
-        oled_write_P(PSTR("NO"), false);
-        oled_set_cursor(0, 7);
-        oled_write_P(PSTR("TRKPD"), false);
-    }
-
-    /* Sniper info display override */
-    if (sniper_info_mode) {
-        oled_set_cursor(0, 6);
-        oled_write_P(PSTR("     "), false);
-        oled_set_cursor(0, 7);
-        oled_write_P(PSTR("     "), false);
-        oled_set_cursor(0, 8);
-        oled_write_P(PSTR("     "), false);
-        oled_set_cursor(0, 9);
-        oled_write_P(PSTR("     "), false);
-
-        oled_set_cursor(0, 6);
+    } else if (!trackpad_enabled) {
+        oled_write_P(PSTR("NOTRK"), false);
+    } else if (sniper_learning_mode) {
+        oled_write_P(PSTR("LEARN"), false);
         oled_write_P(PSTR("SNIPE"), false);
-        oled_set_cursor(0, 7);
+        oled_write_P(PSTR("HOLD "), false);
+    } else if (sniper_info_mode) {
+        oled_write_P(PSTR("SNIPE"), false);
         oled_write_P(PSTR("MODS:"), false);
-        oled_set_cursor(0, 8);
         if (sniper_modifier_mask == 0) {
-            oled_write_P(PSTR("NONE"), false);
+            oled_write_P(PSTR("NONE "), false);
         } else {
-            char mod_str[9] = "";
-            if (sniper_modifier_mask & MOD_BIT(KC_LCTL)) strcat(mod_str, "LC");
-            if (sniper_modifier_mask & MOD_BIT(KC_LSFT)) strcat(mod_str, "LS");
-            if (sniper_modifier_mask & MOD_BIT(KC_LALT)) strcat(mod_str, "LA");
-            if (sniper_modifier_mask & MOD_BIT(KC_LGUI)) strcat(mod_str, "LG");
-            if (sniper_modifier_mask & MOD_BIT(KC_RCTL)) strcat(mod_str, "RC");
-            if (sniper_modifier_mask & MOD_BIT(KC_RSFT)) strcat(mod_str, "RS");
-            if (sniper_modifier_mask & MOD_BIT(KC_RALT)) strcat(mod_str, "RA");
-            if (sniper_modifier_mask & MOD_BIT(KC_RGUI)) strcat(mod_str, "RG");
+            char mod_str[6] = "     "; uint8_t pos = 0;
+            if (sniper_modifier_mask & MOD_BIT(KC_LCTL) && pos < 4) mod_str[pos++] = 'C';
+            if (sniper_modifier_mask & MOD_BIT(KC_LSFT) && pos < 4) mod_str[pos++] = 'S';
+            if (sniper_modifier_mask & MOD_BIT(KC_LALT) && pos < 4) mod_str[pos++] = 'A';
+            if (sniper_modifier_mask & MOD_BIT(KC_LGUI) && pos < 4) mod_str[pos++] = 'G';
             oled_write(mod_str, false);
         }
+    } else {
+        if (user_config.scroll_layers & (1 << layer))      oled_write_P(PSTR("SCROL"), false);
+        else if (user_config.swipe2_layers & (1 << layer)) oled_write_P(PSTR("2SWPE"), false);
+        else if (user_config.swipe3_layers & (1 << layer)) oled_write_P(PSTR("3SWPE"), false);
+        else                                                oled_write_P(PSTR("CURSR"), false);
+    }
+}
+static void render_wid_gesture_bmp(uint8_t row) {
+    oled_set_cursor(0, row);
+    if (is_ptp_mode() || !trackpad_enabled || sniper_learning_mode || sniper_info_mode)
+        oled_write_raw_P(gesture_blank, 64);
+    else
+        oled_write_raw_P(get_trackpad_gesture_bitmap(get_highest_layer(layer_state)), 64);
+}
+static void render_wid_layer_num(uint8_t row) {
+    static const uint8_t * const digit_bitmaps[10] PROGMEM = {
+        digit_0, digit_1, digit_2, digit_3, digit_4,
+        digit_5, digit_6, digit_7, digit_8, digit_9,
+    };
+    uint8_t layer = get_highest_layer(layer_state);
+    if (layer > 9) layer = 0;
+    oled_set_cursor(0, row);
+    oled_write_raw_P((const char*)pgm_read_ptr(&digit_bitmaps[layer]), 128);
+}
+static void render_wid_anim_calcifer(void) {
+    static uint8_t  frame = 0;
+    static uint32_t timer = 0;
+    static const uint8_t blank_row[32] = {0};
+    if (timer_elapsed32(timer) > 80) { timer = timer_read32(); frame = (frame + 1) % CALCIFER_FRAME_COUNT; }
+    for (uint8_t r = 0; r < 5; r++) { oled_set_cursor(0, r); oled_write_raw(blank_row, 32); }
+    oled_set_cursor(0, 5);
+    oled_write_raw_P(calcifer_frames[frame], CALCIFER_FRAME_SIZE);
+    for (uint8_t r = 10; r < 16; r++) { oled_set_cursor(0, r); oled_write_raw(blank_row, 32); }
+}
+
+static uint8_t widget_rows(uint8_t wid) {
+    if (wid == WID_GESTURE_BMP)   return 2;
+    if (wid == WID_LAYER_NUM)     return 4;
+    if (wid >= WID_ANIM_CALCIFER) return 16;
+    return 1;
+}
+
+static void render_screen(const uint8_t *slots) {
+    if (slots[0] >= WID_ANIM_CALCIFER) { render_wid_anim_calcifer(); return; }
+    uint8_t row = 0;
+    for (uint8_t s = 0; s < 16 && row < 16; s++) {
+        uint8_t wid = slots[s];
+        if (wid < WID_GESTURE_BMP) oled_set_cursor(0, row);
+        switch (wid) {
+            case WID_BLANK:       oled_write_P(PSTR("     "), false); break;
+            case WID_KB_NAME:     render_wid_kb_name();               break;
+            case WID_OS_DETECT:   render_wid_os_detect();             break;
+            case WID_NUM_LOCK:    render_wid_num_lock();              break;
+            case WID_CAPS_LOCK:   render_wid_caps_lock();             break;
+            case WID_LAYER_NAME:  render_wid_layer_name();            break;
+            case WID_DPI:         render_wid_dpi();                   break;
+            case WID_SCROLL_SPD:  render_wid_scroll_spd();            break;
+            case WID_TRK_MODE:    render_wid_trk_mode();              break;
+            case WID_WPM:         render_wid_wpm();                   break;
+            case WID_GESTURE_BMP: render_wid_gesture_bmp(row);        break;
+            case WID_LAYER_NUM:   render_wid_layer_num(row);          break;
+            default: break;
+        }
+        row += widget_rows(wid);
+    }
+}
+
+/* Portrait TP_INFO overlay for slave OLED (OLED_ROTATION_270, 32x128, rows 0-15).
+ * Shows a snapshot of master-side trackpad/OS state sent via TP_INFO keycode. */
+static void print_tp_info_overlay(void) {
+    oled_clear();
+    uint8_t layer = get_highest_layer(layer_state);
+
+    /* Row 0: keyboard shortname */
+    oled_set_cursor(0, 0);
+    for (uint8_t i = 0; i < 5; i++)
+        oled_write_char(g_oled_config.row1[i] ? g_oled_config.row1[i] : ' ', false);
+
+    /* Row 1: OS label */
+    oled_set_cursor(0, 1);
+    oled_write_P(PSTR("OS:  "), false);
+
+    /* Row 2: OS value */
+    oled_set_cursor(0, 2);
+    switch ((os_variant_t)g_tp_info_data.os_variant) {
+        case OS_MACOS: case OS_IOS: oled_write_P(PSTR("MAC  "), false); break;
+        case OS_WINDOWS:            oled_write_P(PSTR("WIN  "), false); break;
+        case OS_LINUX:              oled_write_P(PSTR("LNX  "), false); break;
+        default:                    oled_write_P(PSTR("???  "), false); break;
     }
 
-    /* Row 10: 5-char layer name (standard font); row 11 blank spacer */
-    oled_set_cursor(0, 10);
+    /* Row 3: PTP or MOUSE mode */
+    oled_set_cursor(0, 3);
+    oled_write_P(g_tp_info_data.ptp_mode ? PSTR("PTP  ") : PSTR("MOUSE"), false);
+
+    /* Row 5: layer number */
+    oled_set_cursor(0, 5);
+    oled_write_P(PSTR("L:"), false);
+    oled_write_char('0' + (layer < 10 ? layer : 0), false);
+    oled_write_P(PSTR("  "), false);
+
+    /* Row 6: layer name */
+    oled_set_cursor(0, 6);
     {
-        const char *_ln = g_oled_config.layer_names[current_layer < 10 ? current_layer : 0];
-        for (uint8_t _i = 0; _i < 5; _i++)
-            oled_write_char(_ln[_i] ? _ln[_i] : ' ', false);
+        const char *ln = g_oled_config.layer_names[layer < 10 ? layer : 0];
+        for (uint8_t i = 0; i < 5; i++) oled_write_char(ln[i] ? ln[i] : ' ', false);
     }
 
-    /* Large layer number (rows 12-15; row 11 is a natural blank spacer) */
-    display_large_layer_number(current_layer);
+    /* Row 8: gesture mode */
+    oled_set_cursor(0, 8);
+    if (!g_tp_info_data.trackpad_on) {
+        oled_write_P(PSTR("NOTP "), false);
+    } else {
+        switch (g_tp_info_data.gesture_mode) {
+            case 1: oled_write_P(PSTR("SCRL "), false); break;
+            case 2: oled_write_P(PSTR("2SWP "), false); break;
+            case 3: oled_write_P(PSTR("3SWP "), false); break;
+            default: oled_write_P(PSTR("CRSR "), false); break;
+        }
+    }
+
+    /* Row 10: DPI label + value */
+    oled_set_cursor(0, 10);
+    oled_write_P(g_tp_info_data.sniper_active ? PSTR("SNP: ") : PSTR("DPI: "), false);
+    oled_set_cursor(0, 11);
+    {
+        char s[6];
+        snprintf(s, sizeof(s), "%-5d", (int)(g_tp_info_data.sniper_active
+                                             ? g_tp_info_data.sniper_dpi
+                                             : g_tp_info_data.dpi));
+        oled_write(s, false);
+    }
+
+    /* Row 12: scroll speed label + value */
+    oled_set_cursor(0, 12);
+    oled_write_P(PSTR("SCR: "), false);
+    oled_set_cursor(0, 13);
+    {
+        char sc[6];
+        snprintf(sc, sizeof(sc), "%-5d", (int)g_tp_info_data.scroll_spd);
+        oled_write(sc, false);
+    }
+
+    /* Row 14: num lock indicator */
+    oled_set_cursor(0, 14);
+    if (host_keyboard_led_state().num_lock) {
+        oled_write_P(PSTR("NMLK "), false);
+    } else {
+        oled_write_P(PSTR("     "), false);
+    }
 }
 
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
-    if (is_keyboard_master()) {
-        return OLED_ROTATION_270;
-    }
-    return rotation;
+    return OLED_ROTATION_270;
 }
 
 bool oled_task_user(void) {
@@ -1686,7 +1804,7 @@ bool oled_task_user(void) {
             if (last_input_activity_elapsed() > OLED_TIMEOUT) {
                 oled_off();
             } else {
-                print_status_narrow();
+                render_screen(g_oled_config.screen_a);
             }
         }
         if (!is_oled_on() && last_input_activity_elapsed() < 1000) {
@@ -1696,8 +1814,11 @@ bool oled_task_user(void) {
         if (is_oled_on()) {
             if (last_input_activity_elapsed() > OLED_TIMEOUT) {
                 oled_off();
+            } else if (tp_info_active && timer_elapsed32(tp_info_timer) < TP_INFO_DURATION_MS) {
+                print_tp_info_overlay();
             } else {
-                render_space();
+                tp_info_active = false;
+                render_screen(g_slave_oled_slots);
             }
         }
         if (!is_oled_on() && last_input_activity_elapsed() < 1000) {
