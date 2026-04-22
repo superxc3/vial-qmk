@@ -30,7 +30,9 @@
         {"name": "SNIPER_DPI_DOWN", "title": "Sniper DPI-", "shortName": "SNP-"},
         {"name": "SNIPER_SHOW_MODS", "title": "Show Sniper Mods", "shortName": "SNPSH"},
         {"name": "OS_DETECTION_TOGGLE", "title": "Toggle OS Detection", "shortName": "OSTOG"},
-        {"name": "ZMTOG", "title": "Toggle Zoom Gestures", "shortName": "ZMTOG"}
+        {"name": "ZMTOG", "title": "Toggle Zoom Gestures", "shortName": "ZMTOG"},
+        {"name": "AP_GLOB", "title": "Globe / Fn (macOS)", "shortName": "GLOBE"},
+        {"name": "TP_INFO", "title": "Show trackpad info on left OLED (5s)", "shortName": "TPINF"}
     ],
     "layouts": {
         "labels": [

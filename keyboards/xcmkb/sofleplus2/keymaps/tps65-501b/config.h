@@ -92,10 +92,13 @@
 
 /* Power Management - OLED and RGB sleep/wake */
 #undef OLED_TIMEOUT
-#define OLED_TIMEOUT 300000          // 5 minutes OLED timeout (override default)
-#define RGB_MATRIX_TIMEOUT 300000    // 5 minutes RGB timeout
+#define OLED_TIMEOUT 60000           // 1 minute OLED timeout
+#define RGB_MATRIX_TIMEOUT 60000     // 1 minute RGB timeout
 #define RGB_MATRIX_SLEEP             // Enable RGB sleep when suspended
 #define RGB_MATRIX_DEFAULT_ON true   // RGB on by default
+/* VCC droop mitigation: lower peak LED current to give headroom for IQS5xx I2C current spikes on shared 3V3 rail */
+#undef RGB_MATRIX_MAXIMUM_BRIGHTNESS
+#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 65
 
 
 

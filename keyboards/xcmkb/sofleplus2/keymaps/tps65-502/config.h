@@ -22,7 +22,7 @@
 
 
 #define EE_HANDS
-#define INIT_EE_HANDS_LEFT       // Auto-program EEPROM as LEFT on every boot (survives EEPROM resets)
+//#define INIT_EE_HANDS_LEFT       // Auto-program EEPROM as LEFT on every boot (survives EEPROM resets)
 //#define MASTER_LEFT
 //#define MASTER_RIGHT
 #define USB_VBUS_PIN GP19

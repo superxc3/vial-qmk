@@ -1478,8 +1478,6 @@ void suspend_wakeup_init_user(void) {
 #include "oled_data.h"
 
 
-unsigned int animation_state = 0;
-
 // Gesture bitmaps (32x11px each, stored as 64 bytes per bitmap)
 static const char PROGMEM gesture_2finger[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xe0, 0xf8, 0xfe, 0xf8, 0xe0, 0x80, 0x0c,
@@ -1517,37 +1515,6 @@ static const char* get_trackpad_gesture_bitmap(uint8_t layer) {
     if (user_config.swipe3_layers & (1 << layer)) return gesture_3finger;
     return gesture_default;
 }
-
-static void render_space(void) {
-    char wpm = get_current_wpm();
-    uint8_t render_row[128];
-    int i;
-
-    oled_set_cursor(0,0);
-    for(i=0; i<wpm/4; i++) render_row[i] = pgm_read_byte(space_row_1+i+animation_state);
-    for(i=wpm/4; i<128; i++) render_row[i] = (pgm_read_byte(space_row_1+i+animation_state) & pgm_read_byte(mask_row_1+i-wpm/4)) | pgm_read_byte(ship_row_1+i-wpm/4);
-    oled_write_raw((const char*)render_row, 128);
-
-    oled_set_cursor(0,1);
-    for(i=0; i<wpm/4; i++) render_row[i] = pgm_read_byte(space_row_2+i+animation_state);
-    for(i=wpm/4; i<128; i++) render_row[i] = (pgm_read_byte(space_row_2+i+animation_state) & pgm_read_byte(mask_row_2+i-wpm/4)) | pgm_read_byte(ship_row_2+i-wpm/4);
-    oled_write_raw((const char*)render_row, 128);
-
-    oled_set_cursor(0,2);
-    for(i=0; i<wpm/4; i++) render_row[i] = pgm_read_byte(space_row_3+i+animation_state);
-    for(i=wpm/4; i<128; i++) render_row[i] = (pgm_read_byte(space_row_3+i+animation_state) & pgm_read_byte(mask_row_3+i-wpm/4)) | pgm_read_byte(ship_row_3+i-wpm/4);
-    oled_write_raw((const char*)render_row, 128);
-
-    oled_set_cursor(0,3);
-    for(i=0; i<wpm/4; i++) render_row[i] = pgm_read_byte(space_row_4+i+animation_state);
-    for(i=wpm/4; i<128; i++) render_row[i] = (pgm_read_byte(space_row_4+i+animation_state) & pgm_read_byte(mask_row_4+i-wpm/4)) | pgm_read_byte(ship_row_4+i-wpm/4);
-    oled_write_raw((const char*)render_row, 128);
-
-    animation_state = (animation_state + 1 + (wpm/15)) % (128*2);
-}
-
-uint32_t anim_sleep = 0;
-
 
 // Large layer number display
 static void display_large_layer_number(uint8_t layer) {
@@ -1793,10 +1760,7 @@ static void print_tp_info_overlay(void) {
 }
 
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
-    if (is_keyboard_master()) {
-        return OLED_ROTATION_270;
-    }
-    return rotation;
+    return OLED_ROTATION_270;
 }
 
 bool oled_task_user(void) {
@@ -1819,7 +1783,7 @@ bool oled_task_user(void) {
                 print_tp_info_overlay();
             } else {
                 tp_info_active = false;
-                render_space();
+                print_status_narrow();
             }
         }
         if (!is_oled_on() && last_input_activity_elapsed() < 1000) {
