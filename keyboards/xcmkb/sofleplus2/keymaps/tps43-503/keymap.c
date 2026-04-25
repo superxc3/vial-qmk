@@ -461,13 +461,16 @@ typedef struct {
     uint8_t os_variant;
     bool    ptp_mode;
     bool    trackpad_on;
-    uint8_t gesture_mode;  // 0=CURSR 1=SCROL 2=2SWPE 3=3SWPE
+    uint8_t gesture_mode;     // 0=CURSR 1=SCROL 2=2SWPE 3=3SWPE
     uint8_t dpi;
     uint8_t sniper_dpi;
     uint8_t scroll_spd;
     bool    sniper_active;
-    bool    show_overlay;  // true = TP_INFO keypress; false = background auto-sync
-} tp_info_payload_t;
+    bool    show_overlay;     // true = TP_INFO keypress; false = background auto-sync
+    bool    os_detect_enabled;// mirrors master's os_detection_enabled flag
+    char    row1[5];          // keyboard name (e.g. "SOFLE")
+    char    layer_names[10][6];// per-layer display names
+} __attribute__((packed)) tp_info_payload_t;
 static tp_info_payload_t g_tp_info_data         = {0};
 static bool              tp_info_active         = false;
 static uint32_t          tp_info_timer          = 0;
@@ -607,6 +610,8 @@ static void tp_info_sync_handler(uint8_t in_buflen, const void *in_data,
     if (in_buflen >= sizeof(tp_info_payload_t)) {
         memcpy(&g_tp_info_data, in_data, sizeof(tp_info_payload_t));
         g_slave_sync_valid = true;
+        memcpy(g_oled_config.row1, g_tp_info_data.row1, sizeof(g_tp_info_data.row1));
+        memcpy(g_oled_config.layer_names, g_tp_info_data.layer_names, sizeof(g_tp_info_data.layer_names));
         if (g_tp_info_data.show_overlay) {
             tp_info_active = true;
             tp_info_timer  = timer_read32();
@@ -654,18 +659,21 @@ void housekeeping_task_user(void) {
         if (timer_elapsed32(last_auto_sync) >= 500) {
             uint8_t layer = get_highest_layer(layer_state);
             tp_info_payload_t payload = {
-                .os_variant    = (uint8_t)detected_host_os(),
-                .ptp_mode      = !digitizer_send_mouse_reports,
-                .trackpad_on   = trackpad_enabled,
-                .sniper_active = sniper_mode_active,
-                .dpi           = (uint8_t)digitizer_get_mouse_scale(),
-                .sniper_dpi    = (uint8_t)digitizer_get_sniper_scale(),
-                .scroll_spd    = (uint8_t)scroll_speed,
-                .gesture_mode  = (user_config.scroll_layers  & (1 << layer)) ? 1 :
-                                 (user_config.swipe2_layers  & (1 << layer)) ? 2 :
-                                 (user_config.swipe3_layers  & (1 << layer)) ? 3 : 0,
-                .show_overlay  = false,
+                .os_variant        = (uint8_t)detected_host_os(),
+                .ptp_mode          = !digitizer_send_mouse_reports,
+                .trackpad_on       = trackpad_enabled,
+                .sniper_active     = sniper_mode_active,
+                .dpi               = (uint8_t)digitizer_get_mouse_scale(),
+                .sniper_dpi        = (uint8_t)digitizer_get_sniper_scale(),
+                .scroll_spd        = (uint8_t)scroll_speed,
+                .gesture_mode      = (user_config.scroll_layers  & (1 << layer)) ? 1 :
+                                     (user_config.swipe2_layers  & (1 << layer)) ? 2 :
+                                     (user_config.swipe3_layers  & (1 << layer)) ? 3 : 0,
+                .show_overlay      = false,
+                .os_detect_enabled = os_detection_enabled,
             };
+            memcpy(payload.row1, g_oled_config.row1, sizeof(payload.row1));
+            memcpy(payload.layer_names, g_oled_config.layer_names, sizeof(payload.layer_names));
             transaction_rpc_exec(TP_INFO_SYNC, sizeof(payload), &payload, 0, NULL);
             last_auto_sync = timer_read32();
         }
@@ -675,18 +683,21 @@ void housekeeping_task_user(void) {
     if (is_keyboard_master() && g_tp_info_send_pending) {
         uint8_t layer = get_highest_layer(layer_state);
         tp_info_payload_t payload = {
-            .os_variant    = (uint8_t)detected_host_os(),
-            .ptp_mode      = !digitizer_send_mouse_reports,
-            .trackpad_on   = trackpad_enabled,
-            .sniper_active = sniper_mode_active,
-            .dpi           = (uint8_t)digitizer_get_mouse_scale(),
-            .sniper_dpi    = (uint8_t)digitizer_get_sniper_scale(),
-            .scroll_spd    = (uint8_t)scroll_speed,
-            .gesture_mode  = (user_config.scroll_layers  & (1 << layer)) ? 1 :
-                             (user_config.swipe2_layers  & (1 << layer)) ? 2 :
-                             (user_config.swipe3_layers  & (1 << layer)) ? 3 : 0,
-            .show_overlay  = true,
+            .os_variant        = (uint8_t)detected_host_os(),
+            .ptp_mode          = !digitizer_send_mouse_reports,
+            .trackpad_on       = trackpad_enabled,
+            .sniper_active     = sniper_mode_active,
+            .dpi               = (uint8_t)digitizer_get_mouse_scale(),
+            .sniper_dpi        = (uint8_t)digitizer_get_sniper_scale(),
+            .scroll_spd        = (uint8_t)scroll_speed,
+            .gesture_mode      = (user_config.scroll_layers  & (1 << layer)) ? 1 :
+                                 (user_config.swipe2_layers  & (1 << layer)) ? 2 :
+                                 (user_config.swipe3_layers  & (1 << layer)) ? 3 : 0,
+            .show_overlay      = true,
+            .os_detect_enabled = os_detection_enabled,
         };
+        memcpy(payload.row1, g_oled_config.row1, sizeof(payload.row1));
+        memcpy(payload.layer_names, g_oled_config.layer_names, sizeof(payload.layer_names));
         if (transaction_rpc_exec(TP_INFO_SYNC, sizeof(payload), &payload, 0, NULL)) {
             g_tp_info_send_pending = false;
         }
@@ -1634,6 +1645,7 @@ static void print_status_narrow(void) {
     bool    d_sniper     = is_slave ? g_tp_info_data.sniper_active  : sniper_mode_active;
     bool    d_learn      = is_slave ? false : sniper_learning_mode;  // transient, not synced
     bool    d_info       = is_slave ? false : sniper_info_mode;      // transient, not synced
+    bool    d_os_enabled = is_slave ? g_tp_info_data.os_detect_enabled : os_detection_enabled;
 
     /* Row 1: configurable keyboard name (default "SOFLE") */
     oled_set_cursor(0, 1);
@@ -1644,7 +1656,7 @@ static void print_status_narrow(void) {
     oled_set_cursor(0, 2);
     if (is_slave && !g_slave_sync_valid) {
         oled_write_P(PSTR("SYNC "), false);
-    } else if (!is_slave && !os_detection_enabled) {
+    } else if (!d_os_enabled) {
         oled_write("PLUS+", false);
     } else {
         switch ((os_variant_t)d_os) {
