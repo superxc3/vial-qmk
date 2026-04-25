@@ -159,8 +159,10 @@ uint16_t info_timer = 0;
 
 // Zoom gesture state
 bool zoom_enabled      = true;
-static bool zoom_active     = false; // modifier currently held for zoom
-static bool zoom_using_cmd  = false; // true = KC_LGUI, false = KC_LCTL
+static bool zoom_active     = false;
+static bool zoom_using_cmd  = false;
+
+bool digitizer_zoom_enabled(void) { return zoom_enabled; }
 
 // Release any modifier keys held by the zoom gesture.
 // Safe to call even when zoom is not active.
@@ -1042,43 +1044,6 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
         mouse_report.v = 0;
         mouse_report.buttons = 0;
         return mouse_report;
-    }
-
-    // Handle hardware zoom gestures (OS-aware)
-    if (zoom_enabled && (mouse_report.buttons & (1 << 6)) != 0) {
-        if (!zoom_active) {
-            os_variant_t detected_os = get_effective_os_detection();
-            if (detected_os == OS_MACOS || detected_os == OS_IOS) {
-                register_code(KC_LGUI);
-                zoom_using_cmd = true;
-            } else {
-                register_code(KC_LCTL);
-                zoom_using_cmd = false;
-            }
-            register_code(KC_KP_MINUS);
-            zoom_active = true;
-        }
-        mouse_report.buttons &= ~(1 << 6);
-    } else if (zoom_enabled && (mouse_report.buttons & (1 << 7)) != 0) {
-        if (!zoom_active) {
-            os_variant_t detected_os = get_effective_os_detection();
-            if (detected_os == OS_MACOS || detected_os == OS_IOS) {
-                register_code(KC_LGUI);
-                zoom_using_cmd = true;
-            } else {
-                register_code(KC_LCTL);
-                zoom_using_cmd = false;
-            }
-            register_code(KC_KP_PLUS);
-            zoom_active = true;
-        }
-        mouse_report.buttons &= ~(1 << 7);
-    } else {
-        zoom_cleanup();
-    }
-
-    if (!zoom_enabled) {
-        mouse_report.buttons &= ~((1 << 6) | (1 << 7));
     }
 
     // Handle modifier-based sniper activation

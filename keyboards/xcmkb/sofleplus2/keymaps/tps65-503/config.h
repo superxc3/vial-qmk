@@ -67,7 +67,8 @@
 #define AZOTEQ_IQS5XX_SWIPE_Y_ENABLE false
 
 /* macOS-friendly 3-finger swipe keycodes (mouse fallback mode only, Windows PTP unaffected) */
-/* TPS65 uses ROTATION_270 — no axis reversal needed for swipe keycodes */
+/* ROTATION_270: physical RIGHT → decreasing digitizer x → invert x for correct native swipe direction */
+#define DIGITIZER_SWIPE_X_INVERT 1
 #define DIGITIZER_SWIPE_UP_KC    LCTL(KC_UP)     // macOS Mission Control
 #define DIGITIZER_SWIPE_DOWN_KC  LCTL(KC_DOWN)   // macOS App Exposé
 #define DIGITIZER_SWIPE_LEFT_KC  LCTL(KC_LEFT)   // macOS Previous Desktop
