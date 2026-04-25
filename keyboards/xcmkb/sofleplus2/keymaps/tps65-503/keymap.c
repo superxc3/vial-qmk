@@ -1172,9 +1172,10 @@ void digitizer_pre_send_user(report_mouse_t *report) {
 
     if (user_config.scroll_layers & layer_bit) {
         // --- 1-finger scroll ---
-        // ROTATION_270 empirically verified: report->x = physical LEFT/RIGHT, report->y = physical UP/DOWN
-        int sh_acc = (int)report->x * (int)digitizer_get_scroll_scale() + scroll_carry_h;
-        int sv_acc = (int)report->y * (int)digitizer_get_scroll_scale() + scroll_carry_v;
+        // ROTATION_270: report->x = horizontal axis, report->y = vertical axis
+        // Both axes negated: sensor reports inverted sign relative to scroll direction
+        int sh_acc = -(int)report->x * (int)digitizer_get_scroll_scale() + scroll_carry_h;
+        int sv_acc = -(int)report->y * (int)digitizer_get_scroll_scale() + scroll_carry_v;
         scroll_carry_h   = sh_acc % 64;
         scroll_carry_v   = sv_acc % 64;
         int _sh = sh_acc / 64; report->h = _sh < -127 ? -127 : _sh > 127 ? 127 : _sh;
@@ -1184,8 +1185,8 @@ void digitizer_pre_send_user(report_mouse_t *report) {
 
     } else if (user_config.swipe2_layers & layer_bit) {
         // --- 1-finger horizontal → browser back/forward ---
-        // ROTATION_270 empirically verified: report->x = horizontal (positive=right, negative=left)
-        swipe2_accum += (int)report->x;
+        // ROTATION_270: report->x = horizontal; negate because RIGHT→negative x
+        swipe2_accum -= (int)report->x;
         if (swipe2_accum >= DIGITIZER_SWIPE2_THRESHOLD) {
             tap_code16(LGUI(KC_RBRC));  // Cmd+] = forward
             swipe2_accum = 0;
@@ -1198,9 +1199,9 @@ void digitizer_pre_send_user(report_mouse_t *report) {
 
     } else if (user_config.swipe3_layers & layer_bit) {
         // --- 1-finger → 3-finger swipe keycodes ---
-        // ROTATION_270 empirically verified: report->x = horizontal, report->y = vertical
-        swipe3_h += (int)report->x;          // RIGHT→positive → SWIPE_RIGHT_KC ✓
-        swipe3_v += (int)report->y;          // DOWN→positive → SWIPE_DOWN_KC; UP→negative → SWIPE_UP_KC ✓
+        // ROTATION_270: report->x = horizontal (RIGHT→negative), report->y = vertical (UP→negative)
+        swipe3_h -= (int)report->x;          // negate: RIGHT→positive h → SWIPE_RIGHT_KC ✓
+        swipe3_v += (int)report->y;          // UP→negative y → negative v → SWIPE_UP_KC ✓
         if (swipe3_h >= DIGITIZER_SWIPE3_THRESHOLD) {
             tap_code16(DIGITIZER_SWIPE_RIGHT_KC);
             swipe3_h = 0; swipe3_v = 0;
