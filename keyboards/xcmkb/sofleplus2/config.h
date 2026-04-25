@@ -109,7 +109,7 @@
 #define DRIVER_LED_TOTAL RGBLED_NUM
 #define SPLIT_TRANSPORT_MIRROR //https://github.com/qmk/qmk_firmware/blob/master/docs/config_options.md
 #define RGB_MATRIX_SLEEP
-#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 80  // Reduced from 120: limits LED current draw when left is master (3V3 LDO powers both halves via split cable; 120 causes brownout on IQS5xx touch spike)
+#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 100  // Max 120. 80 Too Dim. 100
 
 //#define VIALRGB_NO_DIRECT					//Save space
 #define RGB_MATRIX_FRAMEBUFFER_EFFECTS 	//This is for solidreactive effect
