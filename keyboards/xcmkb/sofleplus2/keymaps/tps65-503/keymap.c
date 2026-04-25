@@ -473,6 +473,7 @@ static bool              tp_info_active         = false;
 static uint32_t          tp_info_timer          = 0;
 static bool              g_tp_info_send_pending = false;
 static bool              g_slave_sync_valid     = false;  // true after first auto-sync received
+static uint8_t           g_pipeline_mouse_buttons = 0;   // keyboard-side mouse buttons (e.g. DIP BTN1) for drag merge
 
 void vialrgb_set_indicator_leds_user(uint8_t role_idx, const uint8_t *mask_bytes) {
     /* Receives 8 bytes: little-endian uint64 bitmask for the given role. */
@@ -1034,6 +1035,11 @@ void matrix_scan_user(void) {
 // ==================== Pointing Device Task ====================
 
 report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
+    // Save combined button state (trackpad tap + keyboard mousekeys) so
+    // digitizer_pre_send_user() can merge it into the direct host_mouse_send().
+    // That path bypasses QMK's mousekey OR, which would drop DIP-button drags.
+    g_pipeline_mouse_buttons = mouse_report.buttons;
+
     if (!trackpad_enabled) {
         zoom_cleanup();
         mouse_report.x = 0;
@@ -1130,7 +1136,7 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 // swipe3_layer:  1-finger movement → 3-finger swipe keycodes (desktop switch, etc.)
 //
 // ROTATION_270 axis mapping (flip_x=true, switch_xy=true):
-//   Physical LEFT/RIGHT → report->y  (negative=left, positive=right)
+//   Physical LEFT/RIGHT → report->y  (positive=left, negative=right — opposite of intuition)
 //   Physical UP/DOWN    → report->x  (positive=up, negative=down)
 //
 // The sub-pixel accumulators are reset on finger-lift to prevent carry-over.
@@ -1142,6 +1148,11 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 #endif
 
 void digitizer_pre_send_user(report_mouse_t *report) {
+    // Merge keyboard-side mouse buttons (e.g. DIP center = BTN1) into the report.
+    // digitizer_mouse_fallback.c sends via host_mouse_send() directly, bypassing
+    // QMK's mousekey OR logic, so drag (BTN1 held + movement) would be lost without this.
+    report->buttons |= g_pipeline_mouse_buttons;
+
     // Per-mode state (file-scope so we can reset on finger-lift)
     static int     scroll_carry_h   = 0;
     static int     scroll_carry_v   = 0;
@@ -1176,8 +1187,8 @@ void digitizer_pre_send_user(report_mouse_t *report) {
 
     } else if (user_config.swipe2_layers & layer_bit) {
         // --- 1-finger horizontal → browser back/forward ---
-        // ROTATION_270: physical LEFT → report->y negative, physical RIGHT → report->y positive
-        swipe2_accum += (int)report->y;
+        // ROTATION_270: physical LEFT → report->y positive, so negate for LEFT=back convention
+        swipe2_accum -= (int)report->y;
         if (swipe2_accum >= DIGITIZER_SWIPE2_THRESHOLD) {
             tap_code16(LGUI(KC_RBRC));  // Cmd+] = forward
             swipe2_accum = 0;
@@ -1191,7 +1202,7 @@ void digitizer_pre_send_user(report_mouse_t *report) {
     } else if (user_config.swipe3_layers & layer_bit) {
         // --- 1-finger → 3-finger swipe keycodes ---
         // ROTATION_270: horizontal in report->y, vertical in report->x
-        swipe3_h += (int)report->y;          // LEFT→negative, RIGHT→positive
+        swipe3_h -= (int)report->y;          // LEFT→positive (ROTATION_270), so negate: LEFT fires SWIPE_LEFT_KC
         swipe3_v -= (int)report->x;          // UP→positive report->x → negate → UP_KC ✓
         if (swipe3_h >= DIGITIZER_SWIPE3_THRESHOLD) {
             tap_code16(DIGITIZER_SWIPE_RIGHT_KC);
