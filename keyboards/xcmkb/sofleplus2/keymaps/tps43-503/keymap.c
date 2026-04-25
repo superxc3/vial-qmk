@@ -476,7 +476,6 @@ static bool              tp_info_active         = false;
 static uint32_t          tp_info_timer          = 0;
 static bool              g_tp_info_send_pending = false;
 static bool              g_slave_sync_valid     = false;  // true after first auto-sync received
-static uint8_t           g_pipeline_mouse_buttons = 0;   // keyboard-side mouse buttons (e.g. DIP BTN1) for drag merge
 
 void vialrgb_set_indicator_leds_user(uint8_t role_idx, const uint8_t *mask_bytes) {
     /* Receives 8 bytes: little-endian uint64 bitmask for the given role. */
@@ -1037,11 +1036,6 @@ void matrix_scan_user(void) {
 // ==================== Pointing Device Task ====================
 
 report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
-    // Save combined button state (trackpad tap + keyboard mousekeys) so
-    // digitizer_pre_send_user() can merge it into the direct host_mouse_send().
-    // That path bypasses QMK's mousekey OR, which would drop DIP-button drags.
-    g_pipeline_mouse_buttons = mouse_report.buttons;
-
     if (!trackpad_enabled) {
         zoom_cleanup();
         mouse_report.x = 0;
@@ -1146,10 +1140,14 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 #endif
 
 void digitizer_pre_send_user(report_mouse_t *report) {
-    // Merge keyboard-side mouse buttons (e.g. DIP center = BTN1) into the report.
-    // digitizer_mouse_fallback.c sends via host_mouse_send() directly, bypassing
-    // QMK's mousekey OR logic, so drag (BTN1 held + movement) would be lost without this.
-    report->buttons |= g_pipeline_mouse_buttons;
+    // Merge keyboard-side mouse buttons (e.g. DIP center = BTN1) into the direct-send report.
+    // digitizer_mouse_fallback.c calls host_mouse_send() before QMK's mousekey OR in
+    // pointing_device_task(), so we must query mousekey state here directly. Saving it
+    // via pointing_device_task_user() doesn't work because that callback fires before
+    // the mousekey OR (see pointing_device.c: task_kb() called before mousekey_get_report()).
+#ifdef MOUSEKEY_ENABLE
+    report->buttons |= mousekey_get_report().buttons;
+#endif
 
     // Per-mode state (file-scope so we can reset on finger-lift)
     static int     scroll_carry_h   = 0;
