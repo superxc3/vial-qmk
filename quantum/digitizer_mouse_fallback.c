@@ -49,6 +49,13 @@
 #        define DIGITIZER_MOUSE_SWIPE_THRESHOLD 300
 #    endif
 
+// Set to 1 in config.h to invert the x-axis swipe direction.
+// Needed for sensors where physical RIGHT produces a decreasing x coordinate
+// (e.g. ROTATION_270 with flip_x on azoteq IQS5xx).
+#    ifndef DIGITIZER_SWIPE_X_INVERT
+#        define DIGITIZER_SWIPE_X_INVERT 0
+#    endif
+
 #    ifndef DIGITIZER_SWIPE_LEFT_KC
 #        define DIGITIZER_SWIPE_LEFT_KC QK_MOUSE_BUTTON_3
 #    endif
@@ -155,6 +162,9 @@ static uint8_t mouse_scale_level  = DIGITIZER_MOUSE_SCALE_DEFAULT;
 static uint8_t scroll_scale_level = DIGITIZER_SCROLL_SCALE_DEFAULT;
 static uint8_t sniper_scale_level = DIGITIZER_SNIPER_SCALE_DEFAULT;
 static bool    sniper_active      = false;
+
+// Override in keymap to gate hardware zoom gestures (e.g. link to a ZMTOG keycode).
+__attribute__((weak)) bool digitizer_zoom_enabled(void) { return true; }
 
 // Safety: release KC_LGUI in case it was left held by a prior firmware version.
 // Called from suspend_wakeup_init_user() to ensure clean state after USB resume.
@@ -433,7 +443,7 @@ void digitizer_update_mouse_report(report_digitizer_t *report) {
                     // so a sustained pinch gesture produces a controlled number of zoom steps rather
                     // than one keypress per frame (which would zoom far too aggressively).
 #if defined(DIGITIZER_DRIVER_azoteq_iqs5xx)
-                    if (digitizer_send_mouse_reports && gesture_ev1.zoom) {
+                    if (digitizer_send_mouse_reports && gesture_ev1.zoom && digitizer_zoom_enabled()) {
                         static uint32_t last_zoom_time = 0;
                         if (timer_elapsed32(last_zoom_time) >= DIGITIZER_ZOOM_RATE_MS) {
                             if (gesture_x_delta > 0) {
@@ -501,11 +511,12 @@ void digitizer_update_mouse_report(report_digitizer_t *report) {
             } else if (duration > DIGITIZER_MOUSE_SWIPE_TIMEOUT) {
                 state = MoveScroll;
             } else if (digitizer_send_mouse_reports) {
-                if (distance_x > DIGITIZER_MOUSE_SWIPE_DISTANCE && abs(distance_y) < DIGITIZER_MOUSE_SWIPE_THRESHOLD) {
+                const int32_t eff_distance_x = DIGITIZER_SWIPE_X_INVERT ? -distance_x : distance_x;
+                if (eff_distance_x > DIGITIZER_MOUSE_SWIPE_DISTANCE && abs(distance_y) < DIGITIZER_MOUSE_SWIPE_THRESHOLD) {
                     // Swipe right
                     tap_code16(DIGITIZER_SWIPE_RIGHT_KC);
                     state = Finished;
-                } else if (distance_x < -DIGITIZER_MOUSE_SWIPE_DISTANCE && abs(distance_y) < DIGITIZER_MOUSE_SWIPE_THRESHOLD) {
+                } else if (eff_distance_x < -DIGITIZER_MOUSE_SWIPE_DISTANCE && abs(distance_y) < DIGITIZER_MOUSE_SWIPE_THRESHOLD) {
                     // Swipe left
                     tap_code16(DIGITIZER_SWIPE_LEFT_KC);
                     state = Finished;

@@ -222,7 +222,12 @@ __attribute__((weak)) bool pointing_device_send(void) {
     local_mouse_report.buttons = buttons;
     memcpy(&old_report, &local_mouse_report, sizeof(local_mouse_report));
 
-    return should_send_report || buttons;
+    // Return true only on report change, not on steady button-hold.
+    // Returning `|| buttons` here reset last_input_activity_elapsed() every 10ms
+    // while the tap state machine was in Drag state (buttons=1, no movement),
+    // permanently blocking RGB/OLED idle timeout on master while slave slept.
+    // Button press and release are still transitions (should_send_report=true).
+    return should_send_report;
 }
 
 /**

@@ -49,4 +49,8 @@ extern uint8_t digitizer_active_contacts;
 // Override in keymap.c to transform the report for layer-based scroll/swipe.
 // Zero out report->x/y if you redirect them to scroll or keycodes.
 void digitizer_pre_send_user(report_mouse_t *report);
+
+// Override in keymap.c to gate hardware pinch-to-zoom gestures.
+// Return false to suppress zoom even when the hardware reports a pinch.
+bool digitizer_zoom_enabled(void);
 #endif

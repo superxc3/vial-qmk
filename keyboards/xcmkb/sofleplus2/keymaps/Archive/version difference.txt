@@ -1,0 +1,11 @@
+v5.01a - breaking change new ptp multitouch
+v5.01b - quick fix for minor items
+v5.01c - to tackle phantom click
+v5.01d - added apple globe support
+v6.00 - automatic switch layering (pending)
+v7.00 - north led new pcb
+v5.01e - oled widget (pending)
+
+vial-gui
+xcmkb branch
+oled branch - for oled widget

@@ -1,0 +1,73 @@
+Power Routing (Per Side)
+USB-C from PC
+    │
+    ▼
+ProMicro RP2040 (nologo 16M)
+    │
+    ├── VBUS/RAW (5V) ── [reserved for future LED migration]
+    │
+    ├── 3V3 VCC ── C15008 (100µF 6.3V X5R) ── ProMicro GND
+    │       │
+    │       ├── FB1 (C1017) ── filtered VCC ── OLED VCC
+    │       │                                    │
+    │       │                                C1525 (100nF) ── OLED GND
+    │       │
+    │       ├── FB2 (C1017) ── filtered VCC ──┬── Trackpad VDDHI
+    │       │                                  ├── C1525 (100nF) ── Trackpad GND
+    │       │                                  └── C19702 (10µF) ── Trackpad GND
+    │       │
+    │       ├── Type-C split VCC (to other half)
+    │       │
+    │       └── First LED mini-e VCC ── C1848 (1µF 50V) ── ProMicro GND
+    │
+    └── GND ──┬── C15008 GND
+              ├── OLED GND
+              ├── Trackpad GND
+              ├── Type-C split GND
+              └── LED GND
+
+I2C Bus (Per Side)
+ProMicro 3V3 VCC
+    │                │
+  4.7kΩ (C25900)   4.7kΩ (C25900)
+    │                │
+ProMicro SDA ────── ProMicro SCL
+    │                │
+  100pF (C1546)    100pF (C1546)
+    │                │
+ProMicro GND       ProMicro GND
+    │                │
+    ├── OLED SDA     ├── OLED SCL
+    └── Trackpad SDA └── Trackpad SCL
+
+Error design tracked, removed c1546 makes everything works
+ProMicro 3V3 VCC
+      │                │
+    4.7kΩ (C25900)   4.7kΩ (C25900)   ← pull-ups
+      │                │
+  ProMicro SDA ────── ProMicro SCL
+      │                │
+    100pF (C1546)    100pF (C1546)     ← NEW filter caps
+      │                │
+    GND              GND
+  The 100pF capacitors (C1546) on SDA and SCL are killing the I2C signals.
+
+ The rise time formula: 2.2 × R × C = 2.2 × 4700 × 100pF ≈ 1034ns
+  Even at 100kHz standard mode it's right at the limit. The SDA/SCL signals can't rise fast enough — the OLED (and IQS5xx) see malformed
+  I2C and don't respond.
+
+
+Split Cable (Type-C Between Halves)
+Left ── Type-C ── Right
+
+VCC (3V3) ──────── VCC (3V3)
+GND ────────────── GND
+TX ── 27Ω (C25190) ──┐    ┌── 27Ω (C25190) ── RX
+                      └────┘
+RX ── 27Ω (C25190) ──┐    ┌── 27Ω (C25190) ── TX
+                      └────┘
+
+ESD protection: C2827654 (USBLC6-2SC6) on TX/RX/GND at type-C connector
+
+
+
