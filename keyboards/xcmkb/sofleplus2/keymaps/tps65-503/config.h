@@ -98,15 +98,13 @@
 #define RGB_MATRIX_TIMEOUT 60000     // 1 minute RGB timeout
 #define RGB_MATRIX_SLEEP             // Enable RGB sleep when suspended
 #define RGB_MATRIX_DEFAULT_ON true   // RGB on by default
-/* VCC droop mitigation: lower peak LED current to give headroom for IQS5xx I2C current spikes on shared 3V3 rail */
-#undef RGB_MATRIX_MAXIMUM_BRIGHTNESS
-#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 65
+
 
 
 
 /* Keyboard name override for this keymap */
 #undef PRODUCT
-#define PRODUCT "SoflePLUS2 v5.03 TPS65"
+#define PRODUCT "SoflePLUS2 v5.03 TPS65 Beta"
 
 
 

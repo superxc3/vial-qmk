@@ -1,7 +1,7 @@
 {
     "name": "Sofle",
     "vendorId": "0xFC32",
-    "productId": "0x0289",
+    "productId": "0x0287",
     "matrix": { "rows": 10, "cols": 7 },
     "lighting": "vialrgb",
     "customKeycodes": [
@@ -45,11 +45,11 @@
               "x": 6,
               "p": "CHICKLET"
             },
-            "0,0\n\n\n\n\n\n\n\n\ne",
+            "0,1\n\n\n\n\n\n\n\n\ne",
             {
               "x": 1
             },
-            "1,1\n\n\n0,0\n\n\n\n\n\ne"
+            "1,0\n\n\n0,0\n\n\n\n\n\ne"
           ],
           [
             {
@@ -134,9 +134,9 @@
               "c": "#cccccc",
               "f": 3
             },
-            "0,1\n\n\n\n\n\n\n\n\ne",
+            "0,0\n\n\n\n\n\n\n\n\ne",
             "1,6\n\n\n1,0",
-            "1,0\n\n\n0,0\n\n\n\n\n\ne"
+            "1,1\n\n\n0,0\n\n\n\n\n\ne"
           ],
           [
             {

@@ -890,6 +890,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
 
     [1] = LAYOUT(
+        KC_GRAVE, KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0, KC_MINUS,
+        KC_ESC,   KC_Q,   KC_W,    KC_F,    KC_P,    KC_B,                     KC_J,    KC_L,    KC_U,    KC_Y, KC_SCLN,  KC_QUOT,
+        KC_TAB,   KC_A,   KC_R,    KC_S,    KC_T,    KC_G,                     KC_M,    KC_N,    KC_E,    KC_I, KC_O,  KC_ENTER,
+        KC_LSFT,  KC_X,   KC_C,    KC_D,    KC_V,    KC_Z, KC_MUTE,    CK_PO, KC_K,    KC_H, KC_COMM,  KC_DOT, KC_SLSH,  KC_RSFT,
+                        KC_LGUI,KC_LALT,KC_LCTL, MO(1), KC_ENT,      KC_SPC,  MO(2), KC_RCTL, KC_RALT, KC_RGUI,
+                        KC_LEFT, KC_UP, KC_RIGHT, KC_DOWN, MS_BTN1
+    ),
+
+    [2] = LAYOUT(
         KC_F12,         KC_F1,      KC_F2,      KC_F3,      KC_F4,      KC_F5,                        KC_F6,        KC_F7,  KC_F8,  KC_F9,  KC_F10,         KC_F11,
         KC_GRAVE,       LSFT(KC_1), LSFT(KC_2), KC_LBRC,    KC_RBRC,    KC_SLASH,                     KC_MINUS,     KC_7,   KC_8,   KC_9,   KC_COMMA,       KC_BSPC,
         LSFT(KC_GRAVE), LSFT(KC_3), LSFT(KC_4), LSFT(KC_9), LSFT(KC_0), LSFT(KC_7),                   KC_EQUAL,     KC_4,   KC_5,   KC_6,   KC_KP_ASTERISK, KC_DELETE,
@@ -898,22 +907,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                 SCROLL_SPEED_DOWN, CURSOR_SPEED_DN, SCROLL_SPEED_UP, CURSOR_SPEED_UP, MS_BTN1
     ),
 
-    [2] = LAYOUT(
+    [3] = LAYOUT(
         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_PGUP, KC_HOME, KC_UP, KC_END, KC_PSCR, KC_TRNS,
         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_PGDN, KC_LEFT, KC_DOWN, KC_RIGHT, KC_INSERT, KC_TRNS,
         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,  KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
                 KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
                 KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, RM_TOGG
-    ),
-
-    [3] = LAYOUT(
-        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,  KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-                KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-                KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS
     ),
 
     [4] = LAYOUT(
@@ -938,9 +938,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #if defined(ENCODER_MAP_ENABLE)
     const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][2] = {
         [0] = { ENCODER_CCW_CW(KC_VOLD, KC_VOLU), ENCODER_CCW_CW(KC_VOLD, KC_VOLU) },
-        [1] = { ENCODER_CCW_CW(CK_ATABF, CK_ATABR), ENCODER_CCW_CW(MS_WHLD, MS_WHLU) },
-        [2] = { ENCODER_CCW_CW(KC_VOLD, KC_VOLU), ENCODER_CCW_CW(KC_F3, C(KC_F3)) },
-        [3] = { ENCODER_CCW_CW(G(KC_LEFT), G(KC_RGHT)), ENCODER_CCW_CW(A(KC_RGHT), A(KC_LEFT)) },
+        [1] = { ENCODER_CCW_CW(MS_WHLD, MS_WHLU), ENCODER_CCW_CW(CK_ATABF, CK_ATABR) },
+        [2] = { ENCODER_CCW_CW(KC_F3, C(KC_F3)), ENCODER_CCW_CW(KC_VOLD, KC_VOLU) },
+        [3] = { ENCODER_CCW_CW(A(KC_RGHT), A(KC_LEFT)), ENCODER_CCW_CW(G(KC_LEFT), G(KC_RGHT)) },
         [4] = { ENCODER_CCW_CW(KC_TRNS, KC_TRNS), ENCODER_CCW_CW(KC_TRNS, KC_TRNS) },
         [5] = { ENCODER_CCW_CW(KC_TRNS, KC_TRNS), ENCODER_CCW_CW(KC_TRNS, KC_TRNS) }
     };
@@ -1031,6 +1031,49 @@ void matrix_scan_user(void) {
             sniper_info_mode = false;
         }
     }
+
+    // --- MOVED FROM POINTING_DEVICE_TASK_USER ---
+    if (is_keyboard_master()) {
+        // Handle modifier-based sniper activation
+        if (sniper_modifier_mask != 0) {
+            uint8_t current_mods = get_mods() | get_oneshot_mods() | get_weak_mods();
+            bool mods_match = (current_mods & sniper_modifier_mask) == sniper_modifier_mask;
+            static bool prev_mods_match   = false;
+            static bool sniper_toggled_manually = false;
+            static bool prev_sniper_state = false;
+
+            // Detect a manual key toggle: sniper state changed but mods didn't cause it
+            if (sniper_mode_active != prev_sniper_state) {
+                if (!prev_mods_match && !mods_match) {
+                    sniper_toggled_manually = sniper_mode_active;
+                }
+            }
+
+            if (mods_match && !prev_mods_match) {
+                sniper_mode_active = true;
+                digitizer_set_sniper_active(true);
+            } else if (!mods_match && prev_mods_match) {
+                if (!sniper_toggled_manually) {
+                    sniper_mode_active = false;
+                    digitizer_set_sniper_active(false);
+                }
+            }
+            prev_mods_match   = mods_match;
+            prev_sniper_state = sniper_mode_active;
+        }
+
+        // Handle learning mode
+        if (sniper_learning_mode) {
+            uint8_t current_mods = get_mods() | get_oneshot_mods() | get_weak_mods();
+            if (current_mods != 0) {
+                sniper_modifier_mask = current_mods;
+                sniper_learning_mode = false;
+                save_sniper_settings();
+            } else if (timer_elapsed(learning_timer) > LEARNING_TIMEOUT) {
+                sniper_learning_mode = false;
+            }
+        }
+    }
 }
 
 // ==================== Pointing Device Task ====================
@@ -1044,34 +1087,6 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
         mouse_report.v = 0;
         mouse_report.buttons = 0;
         return mouse_report;
-    }
-
-    // Handle modifier-based sniper activation
-    if (sniper_modifier_mask != 0) {
-        uint8_t current_mods = get_mods() | get_oneshot_mods() | get_weak_mods();
-        bool mods_match = (current_mods & sniper_modifier_mask) == sniper_modifier_mask;
-        static bool prev_mods_match = false;
-
-        if (mods_match && !prev_mods_match) {
-            sniper_mode_active = true;
-            digitizer_set_sniper_active(true);
-        } else if (!mods_match && prev_mods_match) {
-            sniper_mode_active = false;
-            digitizer_set_sniper_active(false);
-        }
-        prev_mods_match = mods_match;
-    }
-
-    // Handle learning mode
-    if (sniper_learning_mode) {
-        uint8_t current_mods = get_mods() | get_oneshot_mods() | get_weak_mods();
-        if (current_mods != 0) {
-            sniper_modifier_mask = current_mods;
-            sniper_learning_mode = false;
-            save_sniper_settings();
-        } else if (timer_elapsed(learning_timer) > LEARNING_TIMEOUT) {
-            sniper_learning_mode = false;
-        }
     }
 
     // Handle info mode timeout
@@ -1483,6 +1498,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 // matches reality after resume.
 void suspend_wakeup_init_user(void) {
     zoom_cleanup();
+	pinch_cleanup();
     clear_mods();
 }
 

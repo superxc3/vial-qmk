@@ -161,6 +161,7 @@ uint16_t info_timer = 0;
 bool zoom_enabled      = true;
 static bool zoom_active     = false; // modifier currently held for zoom
 static bool zoom_using_cmd  = false; // true = KC_LGUI, false = KC_LCTL
+bool digitizer_zoom_enabled(void) { return zoom_enabled; }
 
 // Release any modifier keys held by the zoom gesture.
 // Safe to call even when zoom is not active.
@@ -890,6 +891,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
 
     [1] = LAYOUT(
+        KC_GRAVE, KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0, KC_MINUS,
+        KC_ESC,   KC_Q,   KC_W,    KC_F,    KC_P,    KC_B,                     KC_J,    KC_L,    KC_U,    KC_Y, KC_SCLN,  KC_QUOT,
+        KC_TAB,   KC_A,   KC_R,    KC_S,    KC_T,    KC_G,                     KC_M,    KC_N,    KC_E,    KC_I, KC_O,  KC_ENTER,
+        KC_LSFT,  KC_X,   KC_C,    KC_D,    KC_V,    KC_Z, KC_MUTE,    CK_PO, KC_K,    KC_H, KC_COMM,  KC_DOT, KC_SLSH,  KC_RSFT,
+                        KC_LGUI,KC_LALT,KC_LCTL, MO(1), KC_ENT,      KC_SPC,  MO(2), KC_RCTL, KC_RALT, KC_RGUI,
+                        KC_LEFT, KC_UP, KC_RIGHT, KC_DOWN, MS_BTN1
+    ),
+
+    [2] = LAYOUT(
         KC_F12,         KC_F1,      KC_F2,      KC_F3,      KC_F4,      KC_F5,                        KC_F6,        KC_F7,  KC_F8,  KC_F9,  KC_F10,         KC_F11,
         KC_GRAVE,       LSFT(KC_1), LSFT(KC_2), KC_LBRC,    KC_RBRC,    KC_SLASH,                     KC_MINUS,     KC_7,   KC_8,   KC_9,   KC_COMMA,       KC_BSPC,
         LSFT(KC_GRAVE), LSFT(KC_3), LSFT(KC_4), LSFT(KC_9), LSFT(KC_0), LSFT(KC_7),                   KC_EQUAL,     KC_4,   KC_5,   KC_6,   KC_KP_ASTERISK, KC_DELETE,
@@ -898,22 +908,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                 SCROLL_SPEED_DOWN, CURSOR_SPEED_DN, SCROLL_SPEED_UP, CURSOR_SPEED_UP, MS_BTN1
     ),
 
-    [2] = LAYOUT(
+    [3] = LAYOUT(
         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_PGUP, KC_HOME, KC_UP, KC_END, KC_PSCR, KC_TRNS,
         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_PGDN, KC_LEFT, KC_DOWN, KC_RIGHT, KC_INSERT, KC_TRNS,
         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,  KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
                 KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
                 KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, RM_TOGG
-    ),
-
-    [3] = LAYOUT(
-        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,  KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-                KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,                    KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-                KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS
     ),
 
     [4] = LAYOUT(
@@ -1031,6 +1032,49 @@ void matrix_scan_user(void) {
             sniper_info_mode = false;
         }
     }
+
+    // --- MOVED FROM POINTING_DEVICE_TASK_USER ---
+    if (is_keyboard_master()) {
+        // Handle modifier-based sniper activation
+        if (sniper_modifier_mask != 0) {
+            uint8_t current_mods = get_mods() | get_oneshot_mods() | get_weak_mods();
+            bool mods_match = (current_mods & sniper_modifier_mask) == sniper_modifier_mask;
+            static bool prev_mods_match   = false;
+            static bool sniper_toggled_manually = false;
+            static bool prev_sniper_state = false;
+
+            // Detect a manual key toggle: sniper state changed but mods didn't cause it
+            if (sniper_mode_active != prev_sniper_state) {
+                if (!prev_mods_match && !mods_match) {
+                    sniper_toggled_manually = sniper_mode_active;
+                }
+            }
+
+            if (mods_match && !prev_mods_match) {
+                sniper_mode_active = true;
+                digitizer_set_sniper_active(true);
+            } else if (!mods_match && prev_mods_match) {
+                if (!sniper_toggled_manually) {
+                    sniper_mode_active = false;
+                    digitizer_set_sniper_active(false);
+                }
+            }
+            prev_mods_match   = mods_match;
+            prev_sniper_state = sniper_mode_active;
+        }
+
+        // Handle learning mode
+        if (sniper_learning_mode) {
+            uint8_t current_mods = get_mods() | get_oneshot_mods() | get_weak_mods();
+            if (current_mods != 0) {
+                sniper_modifier_mask = current_mods;
+                sniper_learning_mode = false;
+                save_sniper_settings();
+            } else if (timer_elapsed(learning_timer) > LEARNING_TIMEOUT) {
+                sniper_learning_mode = false;
+            }
+        }
+    }
 }
 
 // ==================== Pointing Device Task ====================
@@ -1044,71 +1088,6 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
         mouse_report.v = 0;
         mouse_report.buttons = 0;
         return mouse_report;
-    }
-
-    // Handle hardware zoom gestures (OS-aware)
-    if (zoom_enabled && (mouse_report.buttons & (1 << 6)) != 0) {
-        if (!zoom_active) {
-            os_variant_t detected_os = get_effective_os_detection();
-            if (detected_os == OS_MACOS || detected_os == OS_IOS) {
-                register_code(KC_LGUI);
-                zoom_using_cmd = true;
-            } else {
-                register_code(KC_LCTL);
-                zoom_using_cmd = false;
-            }
-            register_code(KC_KP_MINUS);
-            zoom_active = true;
-        }
-        mouse_report.buttons &= ~(1 << 6);
-    } else if (zoom_enabled && (mouse_report.buttons & (1 << 7)) != 0) {
-        if (!zoom_active) {
-            os_variant_t detected_os = get_effective_os_detection();
-            if (detected_os == OS_MACOS || detected_os == OS_IOS) {
-                register_code(KC_LGUI);
-                zoom_using_cmd = true;
-            } else {
-                register_code(KC_LCTL);
-                zoom_using_cmd = false;
-            }
-            register_code(KC_KP_PLUS);
-            zoom_active = true;
-        }
-        mouse_report.buttons &= ~(1 << 7);
-    } else {
-        zoom_cleanup();
-    }
-
-    if (!zoom_enabled) {
-        mouse_report.buttons &= ~((1 << 6) | (1 << 7));
-    }
-
-    // Handle modifier-based sniper activation
-    if (sniper_modifier_mask != 0) {
-        uint8_t current_mods = get_mods() | get_oneshot_mods() | get_weak_mods();
-        bool mods_match = (current_mods & sniper_modifier_mask) == sniper_modifier_mask;
-        static bool prev_mods_match = false;
-
-        if (mods_match && !prev_mods_match) {
-            sniper_mode_active = true;
-            digitizer_set_sniper_active(true);
-        } else if (!mods_match && prev_mods_match) {
-            sniper_mode_active = false;
-            digitizer_set_sniper_active(false);
-        }
-        prev_mods_match = mods_match;
-    }
-
-    // Handle learning mode
-    if (sniper_learning_mode) {
-        uint8_t current_mods = get_mods() | get_oneshot_mods() | get_weak_mods();
-        if (current_mods != 0) {
-            sniper_modifier_mask = current_mods;
-            sniper_learning_mode = false;
-            save_sniper_settings();
-        } else if (timer_elapsed(learning_timer) > LEARNING_TIMEOUT) {
-            sniper_learning_mode = false;
-        }
     }
 
     // Handle info mode timeout
@@ -1173,8 +1152,11 @@ void digitizer_pre_send_user(report_mouse_t *report) {
         // Redirect cursor x,y to scroll h,v. Uses scroll level as scaling
         // factor so the feel tracks the user's SCR setting.
         // carry_h/carry_v accumulate sub-tick fractions across frames.
-        int sh_acc = (int)report->x * (int)digitizer_get_scroll_scale() + scroll_carry_h;
-        int sv_acc = (int)report->y * (int)digitizer_get_scroll_scale() + scroll_carry_v;
+        // natural scrolling for mac mouse fallback
+		//int sh_acc = (int)report->x * (int)digitizer_get_scroll_scale() + scroll_carry_h;
+        //int sv_acc = (int)report->y * (int)digitizer_get_scroll_scale() + scroll_carry_v;
+		int sh_acc = (int)report->x * (int)digitizer_get_scroll_scale() + scroll_carry_h;
+		int sv_acc = -(int)report->y * (int)digitizer_get_scroll_scale() + scroll_carry_v;
         scroll_carry_h   = sh_acc % 64;
         scroll_carry_v   = sv_acc % 64;
         int _sh = sh_acc / 64; report->h = _sh < -127 ? -127 : _sh > 127 ? 127 : _sh;
@@ -1201,7 +1183,7 @@ void digitizer_pre_send_user(report_mouse_t *report) {
         // --- 1-finger → 3-finger swipe keycodes ---
         // Reuses the same DIGITIZER_SWIPE_*_KC keycodes as actual 3-finger swipe.
         // Diagonal movement: whichever axis first exceeds the threshold fires.
-        swipe3_h += (int)report->x;          // LEFT→positive → SWIPE_RIGHT_KC (Prev Desktop) ✓
+        swipe3_h -= (int)report->x;          // 
         swipe3_v -= (int)report->y;          // negate: ROTATION_180 inverts y (physical UP → positive y → UP_KC) ✓
         if (swipe3_h >= DIGITIZER_SWIPE3_THRESHOLD) {
             tap_code16(DIGITIZER_SWIPE_RIGHT_KC);

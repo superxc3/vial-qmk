@@ -1,0 +1,200 @@
+PCB difference:
+this revision added rst and rdy on right pcb. 
+
+currently:
+gp25 for col6 matrix working good, gp12 for sw1 doesn't. it is firmware issue, no hardware issue. 
+
+test1
+new pcb, right side rdy and rst not soldered. using v4.03d firmware
+gp25 and sw1 working when either side ass master.
+when left as master, using right side trackpad will flicker the light. when right as master, using right side trackpad doesn't flicker light
+
+test2
+new pcb, right side rdy and rst soldered. using v4.03d firmware, 一定不可以, 因为right side rst/rdy will defined as gp25 and sw1. dint test. 
+
+test 3
+new pcb, right side rdy and rst not soldered, using v7.00n latest firmware. 
+gp25 working, sw1 not working when left as mastered
+gp25 working, sw1 still not working when right as mastered. 
+when left as master, using right side trackpad will flicker the light. when right as master, using right side trackpad doesn't flicker light
+
+test 4
+new pcb, right side rdy and rst soldered. using v7.00n latest firmware. 
+slave always not connecting, no oled, no key, no light
+the rest similar to test 3.
+
+
+you need to check pcb design on new components added why left as master will flicker the light (previously doesn't). new components is v7.0-pcb-routing, all the same except 2 c1546 connect to sda and scl are removed, without them oled can up and disc and trackpad can work more proper. 
+
+claude solve above issue through:
+  What was created
+
+  tps43-v7.00nl — left side firmware
+
+  ┌─────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────┐
+  │                   Change                    │                                    What it does                                     │
+  ├─────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────┤
+  │ DIP_SWITCH_ENABLE = yes in rules.mk         │ Enables GP12 = SW1. Fixes the broken DIP switch.                                    │
+  ├─────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────┤
+  │ Removed manual                              │ DIP driver owns GP12 now — no conflict.                                             │
+  │ gpio_set_pin_input_high(GP12)               │                                                                                     │
+  ├─────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────┤
+  │ POINTING_DEVICE_TASK_THROTTLE_MS 10         │ Master polls pointing at 10ms (matching IQS5xx rate). Reduces pointless UART        │
+  │                                             │ pressure.                                                                           │
+  ├─────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────┤
+  │ MATRIX_COL_PINS_RIGHT {…, NO_PIN} kept      │ Tells right matrix not to scan GP25 (it's RDY on right side).                       │
+  ├─────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────┤
+  │ UID 0x28                                    │ Unique Vial ID.                                                                     │
+  └─────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────┘
+
+  tps43-v7.00nr — right side firmware
+
+  ┌───────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────┐
+  │                  Change                   │                                     What it does                                      │
+  ├───────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────┤
+  │ DIGITIZER_MOTION_PIN GP25 +               │ Main flicker fix. IQS5xx I2C is only read when RDY is LOW (data actually ready).      │
+  │ DIGITIZER_MOTION_PIN_ACTIVE_LOW           │ Eliminates the continuous 1MHz polling current bursts that rippled through the split  │
+  │                                           │ cable and flickered the left LEDs.                                                    │
+  ├───────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────┤
+  │ I2C1_CLOCK_SPEED 400000                   │ Secondary flicker fix. Without C1546, 400kHz is safe (rise time ~100ns). Half the     │
+  │                                           │ current spike amplitude vs 1MHz.                                                      │
+  ├───────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────┤
+  │ GP12 RST pulse in keyboard_post_init_user │ Fixes Test 4 (slave not connecting). Hard-resets IQS5xx so it boots cleanly instead   │
+  │                                           │ of sitting in a floating unknown state that hangs I2C init.                           │
+  ├───────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────┤
+  │ UID 0x29                                  │ Unique Vial ID.                                                                       │
+  └───────────────────────────────────────────┴───────────────────────────────────────────────────────────────────────────────────────┘
+
+  Compile commands
+
+  make xcmkb/sofleplus2:tps43-v7.00nl
+  make xcmkb/sofleplus2:tps43-v7.00nr
+  Flash nl to the left half, nr to the right half.
+
+---after my test:
+flashed left and right. problem 1: only power transmit to slave and oled is up. rgb not up, all keys not registering, data not
+  tranmistted to slave no matter left or right as master. on left as master, dip switch still not working, some data missing? v4.03d,
+  either side is master, dip switch always working. v5.xx firmware onwards, dip only working on slave (when right as master). v7.00nl or
+  nr not working on left master, right master not sure because connection has problem and cant transmit data. problem 2: rdy and rst seem
+   defined on the right side. but trackpad doesnt work as intended as v5.XX series, it comes with ptp multi-touch. can you double check
+  if, the current xcmkb phantom click branch vs xcmkb branch? xcmkb branch doesnt bind rdy and rst (not sure originally it did or did
+  not). does the original author https://github.com/george-norton/qmk_firmware/tree/multitouch_experiment did rdy and rst?
+
+claude working----:
+  Answers to your questions
+
+  george-norton multitouch_experiment original: No RST/RDY pin support whatsoever. Pure I2C polling only. Reset is done via I2C register
+  write, not hardware pin.
+
+  xcmkb branch vs xcmkb-phantom-fix: Only 2 differences — the phantom-fix branch added AZOTEQ_IQS5XX_MIN_STRENGTH filter and new keymaps.
+  Neither branch has RST/RDY pin support.
+
+  Conclusion: RST/RDY are new additions unique to pcb7. No reference firmware uses them.
+
+  ---
+  Problem 1 Fix (connection broken)
+
+  Root cause: DIP_SWITCH_ENABLE = yes on the left side activates SPLIT_DIP_SWITCH_ENABLE (via board config.h), which adds 2 transaction
+  IDs (GET_DIP_SWITCH_CHECKSUM, GET_DIP_SWITCH_DATA) to the split table. The right side didn't have it → tables mismatched → every
+  transaction after that had the wrong ID → complete blackout (no keys, no RGB, nothing).
+
+  Fix: Both tps43-v7.00nl and tps43-v7.00nr now have DIP_SWITCH_ENABLE = yes. Right side uses DIP_SWITCH_PINS { NO_PIN } so it
+  participates in the split sync but reads no physical pin (always off).
+
+  Problem 2 Fix (trackpad dead)
+
+  Root cause: DIGITIZER_MOTION_PIN GP25 + DIGITIZER_MOTION_PIN_ACTIVE_LOW configures GP25 as input-pullup. If the RDY wire is not
+  soldered, GP25 reads HIGH permanently → digitizer_motion_detected() always returns false → no I2C reads ever → trackpad completely dead.
+
+  Fix: Removed DIGITIZER_MOTION_PIN from tps43-v7.00nr. Back to DIGITIZER_TASK_THROTTLE_MS polling mode — works whether or not RDY is
+  soldered. I2C clock stays at 400kHz (the practical flicker fix that needs no extra hardware).
+
+
+---tested on the above changes. dip switch still not working on both sides. right side soldered with rdy and rst, trackpad doesn't worked as intended. right side soldered without rdy and rst, right side work as intended. 
+if rst and rdy are not existed for george-notion multitouch_experiment, lets check on 5.XX firmware problem that, the slave dip working but master not working. 
+>>> v4.03d has working dip switch on both sides, v5.01d only working on right as master, when left as master dip switch
+  doesn't work. copy v5.01d and rename to v5.02, get the fix on v5.02. you will have two folders namely tps43-502 and tps65-502.
+  With EE_HANDS + USB_VBUS_PIN, is_keyboard_left() reads EEPROM (fixed physical identity), while is_keyboard_master() follows VBUS. When
+  left is master, the right side (slave) holds the physical dip switch at GP12, and SPLIT_DIP_SWITCH_ENABLE needs to sync it S→M — but
+  this sync fails with EE_HANDS.
+
+  With MASTER_LEFT + USB_VBUS_PIN, is_keyboard_left() = is_keyboard_master() = VBUS state, so whichever side has USB considers itself
+  "left" and reads GP12 as its own local dip switch directly — no S→M sync required. This is exactly how v4.03d works, making the dip
+  switch functional on both sides.
+
+  Also updated (both keymaps):
+  - PRODUCT string: v5.01d → v5.02
+  - VIAL_KEYBOARD_UID: unique UIDs assigned to avoid Vial conflicts
+    - tps43-502: {0x3D, 0xB5, 0x72, 0xE1, 0x4F, 0xA8, 0x26, 0xC9}
+    - tps65-502: {0x8A, 0x61, 0xD4, 0x37, 0xFC, 0x15, 0x9B, 0x42}
+
+--- i change master left when i flash left, master right when flash right. when right as master, dip switch and gp25 column working. when i flash left with master left, the dip switch and gp25 column not working, the slave trackpad is not working too. however, when i flash both side with master left and insert left as master, dip switch and gp25 working, slave trackpad is working too. but when i use trackpad it still flicker. i believe is the new components we added as listed in pcb7.txt causing this flicker, can you check. second issue, i dont wan to be restricted by left or right as master, i still prefer ee-hands. i dont mind the needs to change the core code that outside keymap folder level if this is needed, the core code should be working before, not sure if i accidentally changed it. 
+
+
+i dont want to be restricted by master left/right, can you double check what else we can do so it can be ee-hands?
+
+claude: solved
+
+>>>>>>>>> test again v5.01d on new pcb again, with 330ohm added to right, fb1 joined. oled no more noise, but trackpad still flickering the rgb light on the right slave. 
+testagain v4.03d without complicated multi-touch ptp branch, no flickering at all. 
+re-test again v5.02 on old pcb, oled on slave always corrupted with noise. looks like v5.02 has problem with dirty oled on slave. 
+
+>>>>about rdy
+Confirmed. The original George Norton multitouch_experiment branch is identical to what was adapted here — no RDY or RST pins defined
+  anywhere in the IQS5xx driver. It's a pure I2C polling implementation with no hardware pin involvement.
+
+  The IQS5xx driver itself has no concept of a RDY pin. DIGITIZER_MOTION_PIN is a feature of quantum/digitizer.c framework that CAN gate
+  the polling, but it requires the IQS5xx RDY line to be physically wired to a RP2040 GPIO on the PCB. If it's not routed, this option is
+  closed.
+
+  ---
+  Do you know if the IQS5xx RDY pin is wired to any RP2040 GPIO on your PCB? Check the PCB schematic — the IQS5xx RDY pin going to the
+  right RP2040.
+
+  If it's not wired → DIGITIZER_MOTION_PIN is not usable without a PCB revision.
+
+
+PCB v3.01 concluded:
+- using 5.02d. changed i2c clock, fix dip switch. only right as master. 
+- can add rdy gp13. gp25 and gp12 only on the left, dont share pin avoid conflict. 
+- currently left with left firmware, right with right. to check later whether we can standardised only one, we did this because of dip switch before.
+
+
+
+pending: if rst and rdy are not existed for george-notion multitouch_experiment, then how can we solve phantom cursor movement on some users' feedback? i read https://www.azoteq.com/images/stories/pdf/azd067_iqs5xx_trackpad_communication_interface.pdf, there  is Communication Interface talk about rdy and rst. do we need to work based on george-notion branch so that to make use of rdy and rst connected and change the core code? what does this mean from the pdf "It is recommended to connect the RDY to an interrupt-on-change input on the master. This will simplify the program flow, by allowing the firmware to only trigger the data retrieval and processing when the communication window becomes available, without having to poll the RDY line. This becomes even more convenient when configuring the device in EventMode,
+which only triggers a communication window when a selectable event has occurred.."
+
+claude:
+ The PDF recommendation explained
+
+  ▎ "Connect RDY to an interrupt-on-change input... firmware only triggers data retrieval when the communication window
+  ▎ becomes available"
+
+  This is exactly what DIGITIZER_MOTION_PIN implements in QMK. Instead of pinging I2C every 10ms and doing a 45-byte
+  read if the chip ACKs (~4ms blocking), you wait for a GPIO edge → zero I2C traffic between touches → no contention
+  with OLED → no flicker. It's the right solution architecturally. The problem is purely hardware: the pad isn't
+  soldered.
+
+  ---
+  George Norton's branch: no RDY/RST, still works — why?
+
+  His approach is pure polling: ping I2C, if NAK skip, if ACK read. The phantom cursor issue in his branch is handled
+  by:
+  1. The IQS5xx's own internal gesture filtering
+  2. Minimum strength threshold (your AZOTEQ_IQS5XX_MIN_STRENGTH 50)
+  3. Disabling hardware gestures that conflict with PTP
+
+  He never needed RDY/RST because he tolerates the polling overhead. On his hardware, there's presumably no shared I2C
+  bus between trackpad and OLED, so no flicker.
+
+Added RDY to gp13, looks like flickering?
+- test v501c on new board with rdy
+- test v502 with i2c speed changed. )previously 10000 speed with oled noise? now 40000 no noise but trackpad? removed i2c with rdy, not working, on master right, cursor skipping
+
+
+pending: 
+macOS, since macOS using fallback, and window on ptp. there is some direction in wrong direction, dint check with tps65 yet, but on tps43:
+- 3 finger gesture working good in 4 direction. 
+- layer behavior trackpad, scroll was in reversed direction on 1 finger-power, works in correct direction on 2 fingers scroll. 
+
+
