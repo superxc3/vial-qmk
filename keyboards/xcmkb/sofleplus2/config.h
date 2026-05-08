@@ -109,7 +109,7 @@
 #define DRIVER_LED_TOTAL RGBLED_NUM
 #define SPLIT_TRANSPORT_MIRROR //https://github.com/qmk/qmk_firmware/blob/master/docs/config_options.md
 #define RGB_MATRIX_SLEEP
-#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 120
+#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 100  // Max 120. 80 Too Dim. 100
 
 //#define VIALRGB_NO_DIRECT					//Save space
 #define RGB_MATRIX_FRAMEBUFFER_EFFECTS 	//This is for solidreactive effect
@@ -176,7 +176,8 @@
 
 /* Per-key RGB split sync: send g_direct_mode_colors slave portion (29 LEDs x 3 bytes = 87) */
 /* VIALRGB_INDICATOR_SYNC: send indicator_config_t (110 bytes) from master to slave */
-#define SPLIT_TRANSACTION_IDS_USER VIALRGB_DIRECT_SYNC, VIALRGB_INDICATOR_SYNC
+/* OLED_SCREEN_B_SYNC: send screen_b widget slots (16 bytes) from master to slave */
+#define SPLIT_TRANSACTION_IDS_USER VIALRGB_DIRECT_SYNC, VIALRGB_INDICATOR_SYNC, OLED_SCREEN_B_SYNC, TP_INFO_SYNC
 #define RPC_M2S_BUFFER_SIZE 112
 
 /* oled i2c */

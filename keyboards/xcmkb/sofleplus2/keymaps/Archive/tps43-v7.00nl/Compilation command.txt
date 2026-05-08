@@ -1,0 +1,2 @@
+  # One firmware for both sides (v7.00n has no RDY/RST pins — polling mode)
+  make xcmkb/sofleplus2:tps43-v7.00n
