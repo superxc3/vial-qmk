@@ -18,7 +18,11 @@
 //Sets up what the OLED screens display.
 #ifdef OLED_ENABLE
 
+
 unsigned int animation_state = 0;
+
+// Expose scroll_speed from keymap
+extern int16_t scroll_speed;
 
 static const char PROGMEM space_row_1[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -717,10 +721,6 @@ const char* calcifer_allArray[] = {
  	sizeof(calcifer29),
      };
 
-
-
-
-
          // Run animation
 	if (last_input_activity_elapsed() > OLED_TIMEOUT) {
 	oled_off();
@@ -736,9 +736,12 @@ const char* calcifer_allArray[] = {
          }
 
 
-
+	
 
 }
+
+
+
 
 
 static void print_status_narrow(void) {
@@ -782,7 +785,7 @@ static void print_status_narrow(void) {
             oled_write_P(PSTR("8\n"), false);
             break;
         case 9:
-            oled_write_P(PSTR("TBALL\n"), false);
+            oled_write_P(PSTR("9\n"), false);
             break;
         default:
             oled_write_ln_P(PSTR("Undef"), false);
@@ -806,10 +809,48 @@ static void print_status_narrow(void) {
 		char speed_str[2];
 		snprintf(speed_str, sizeof(speed_str), "%d", cursor_speed);
 		oled_write(speed_str, false); 
+
+        // Scroll speed display
+        oled_set_cursor(0,8);
+        oled_write_P(PSTR("SCR"), false);
+        oled_set_cursor(4,8);
+        char scr_str[2];
+        snprintf(scr_str, sizeof(scr_str), "%d", scroll_speed);
+        oled_write(scr_str, false);
 }
 
 
+/*oled setup for sofleplus2*/
+/*
+bool oled_task_user(void) {
 
+    if (is_keyboard_master()) {
+		
+		        if (is_oled_on()) {
+
+            if (last_input_activity_elapsed() > OLED_TIMEOUT) {
+                oled_off();
+            } else {
+                render_space();
+            }
+
+        }
+;
+    //	render_calcifer(0, 10);
+
+    } else {
+		
+	print_status_narrow();
+	oled_set_cursor(0,10); // try to write Calcifer in the middle
+    render_calcifer();
+
+
+
+    }
+
+    return false;
+
+}*/
 
 /*oled setup for sofleplus*/
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
@@ -821,34 +862,7 @@ oled_rotation_t oled_init_user(oled_rotation_t rotation) {
 
 }
 
-/*v2.05a*/
 bool oled_task_user(void) {
-    // Check if OLED timeout has been exceeded
-    if (last_input_activity_elapsed() > OLED_TIMEOUT) {
-        oled_off();  // Turn off the OLED
-        return false; // Prevent further rendering
-    }
-
-    // If not timed out, handle OLED updates
-    if (is_keyboard_master()) {
-        if (is_oled_on()) {  // Check if the OLED is still on
-            print_status_narrow();
-            oled_set_cursor(0, 10);  // Set cursor to middle
-            render_calcifer();       // Render additional graphics
-        }
-    } else {
-        if (is_oled_on()) {
-            render_space();  // Render content for the slave OLED
-        }
-    }
-
-    return false;
-}
-
-
-/*v2.05
-bool oled_task_user(void) {
-	
 
     if (is_keyboard_master()) {
         print_status_narrow();
@@ -872,6 +886,6 @@ bool oled_task_user(void) {
 
     return false;
 
-}*/
+}
 
 #endif
