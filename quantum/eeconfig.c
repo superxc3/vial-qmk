@@ -68,9 +68,20 @@ __attribute__((weak)) void eeconfig_init_kb(void) {
 }
 
 void eeconfig_init_quantum(void) {
+#ifdef EE_HANDS
+    /* Vial invalidates the EEPROM on every new BUILD_ID, which lands here on
+       the first boot after flashing; the erase below would zero the handedness
+       byte and flip a left half to right-hand behavior (mirrored keymap).
+       Carry the handedness across so EH_LEFT stays a one-time setup step. */
+    bool handedness = eeconfig_read_handedness();
+#endif
     nvm_eeconfig_erase();
 
     eeconfig_enable();
+
+#ifdef EE_HANDS
+    eeconfig_update_handedness(handedness);
+#endif
 
     debug_config_t debug_config = {0};
     eeconfig_update_debug(&debug_config);
@@ -178,7 +189,18 @@ void eeconfig_enable(void) {
 }
 
 void eeconfig_disable(void) {
+#ifdef EE_HANDS
+    /* nvm_eeconfig_disable() formats the whole emulated EEPROM immediately
+       (not just the magic word), so the handedness byte is destroyed right
+       here — before the restore in eeconfig_init_quantum() on the next boot
+       can ever see it. Bootmagic and EE_CLR both land here; carry the
+       handedness across so EH_LEFT stays a one-time setup step. */
+    bool handedness = eeconfig_read_handedness();
+#endif
     nvm_eeconfig_disable();
+#ifdef EE_HANDS
+    eeconfig_update_handedness(handedness);
+#endif
 }
 
 bool eeconfig_is_enabled(void) {
