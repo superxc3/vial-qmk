@@ -33,6 +33,17 @@ __attribute__((weak)) const keypos_t PROGMEM hand_swap_config[MATRIX_ROWS][MATRI
 };
 #endif
 
+
+#    ifdef ENCODER_MAP_ENABLE
+const uint8_t PROGMEM encoder_hand_swap_config[NUM_ENCODERS] = {1, 0};
+#    endif
+
+
+//When not using encoder_map_enable=yes
+bool encoder_update_kb(uint8_t index, bool clockwise) {
+    return encoder_update_user(index, clockwise);
+}
+
 #ifdef OLED_ENABLE
 
 oled_rotation_t oled_init_kb(oled_rotation_t rotation) {
@@ -71,10 +82,6 @@ uint8_t  last_col;
 static const char PROGMEM code_to_name[60] = {' ', ' ', ' ', ' ', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'R', 'E', 'B', 'T', '_', '-', '=', '[', ']', '\\', '#', ';', '\'', '`', ',', '.', '/', ' ', ' ', ' '};
 
 static void set_keylog(uint16_t keycode, keyrecord_t *record) {
-    // save the row and column (useful even if we can't find a keycode to show)
-    last_row = record->event.key.row;
-    last_col = record->event.key.col;
-
     key_name     = ' ';
     last_keycode = keycode;
     if (IS_QK_MOD_TAP(keycode)) {
@@ -96,6 +103,8 @@ static void set_keylog(uint16_t keycode, keyrecord_t *record) {
 
     // update keylog
     key_name = pgm_read_byte(&code_to_name[keycode]);
+    last_row = record->event.key.row;
+    last_col = record->event.key.col;
 }
 
 static const char *depad_str(const char *depad_str, char depad_char) {
@@ -105,15 +114,16 @@ static const char *depad_str(const char *depad_str, char depad_char) {
 }
 
 static void oled_render_keylog(void) {
-    oled_write_char('0' + last_row, false);
+    const char *last_row_str = get_u8_str(last_row, ' ');
+    oled_write(depad_str(last_row_str, ' '), false);
     oled_write_P(PSTR("x"), false);
-    oled_write_char('0' + last_col, false);
+    const char *last_col_str = get_u8_str(last_col, ' ');
+    oled_write(depad_str(last_col_str, ' '), false);
     oled_write_P(PSTR(", k"), false);
     const char *last_keycode_str = get_u16_str(last_keycode, ' ');
     oled_write(depad_str(last_keycode_str, ' '), false);
     oled_write_P(PSTR(":"), false);
     oled_write_char(key_name, false);
-    oled_advance_page(true);
 }
 
 // static void render_bootmagic_status(bool status) {

@@ -16,6 +16,7 @@ enum {
     vialrgb_set_trackpad_settings = 0x50,
     vialrgb_set_trackpad_layers   = 0x51,
     vialrgb_set_oled_config       = 0x52,
+    vialrgb_set_power_settings    = 0x53,
 };
 
 enum {
@@ -26,9 +27,11 @@ enum {
     vialrgb_get_led_info = 0x44,
     vialrgb_get_indicator_leds = 0x45,
     vialrgb_get_indicator_colors = 0x46,
+    vialrgb_get_direct_colors = 0x47,
     vialrgb_get_trackpad_settings = 0x50,
     vialrgb_get_trackpad_layers   = 0x51,
     vialrgb_get_oled_config       = 0x52,
+    vialrgb_get_power_settings    = 0x53,
 };
 
 void vialrgb_get_value(uint8_t *data, uint8_t length);
@@ -60,6 +63,12 @@ void vialrgb_set_trackpad_layers_user(const uint8_t *args);
  * SET: args[0]=item,  args[1..5]=name bytes */
 void vialrgb_get_oled_config_user(uint8_t item, char *name_out);
 void vialrgb_set_oled_config_user(uint8_t item, const char *name_in);
+
+/* Sub-ID 0x53 — shared OLED + RGB sleep timeout.
+ *   GET: args[0] = sleep timeout in whole minutes (1-30)
+ *   SET: args[0] = sleep timeout in whole minutes (firmware clamps to 1-30) */
+void vialrgb_get_power_settings_user(uint8_t *args);
+void vialrgb_set_power_settings_user(const uint8_t *args);
 
 /* Weak overrides: implement in keymap.c to handle indicator config get/set.
  *
