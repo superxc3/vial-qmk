@@ -1,5 +1,5 @@
 {
-  "name": "CrkbdPLUS by XCMKB",
+  "name": "CornePLUS by XCMKB",
   "vendorId": "0x4653",
   "productId": "0x0001",
   "matrix": { "rows": 8, "cols": 6 },
@@ -25,34 +25,9 @@
     "title": "Power Options",
     "shortName": "POWER"
     },
-    {"name": "CK_DL",
-    "title": "Hold to move cursor super slow",
-    "shortName": "SNIP"
-    },
-	{"name": "CK_TBSRL",
-	 "title": "Hold For Trackball Scroll",
-	 "shortName": "HSCRL"
-	},
-	{"name": "CK_TBSRLT",
-	 "title": "Enable Trackball Scroll",
-	 "shortName": "SCRL"
-	},
-	{"name": "CK_TBPOIT",
-	 "title": "Enable Trackball Precision",
-	 "shortName": "POINT"
-	},		
-	{"name": "CK_TBINS",
-	 "title": "Increase Trackball Speed By 1 Level",
-	 "shortName": "TBINS"
-	},
-	{"name": "CK_TBDES",
-	 "title": "Decrease Trackball Speed By 1 Level",
-	 "shortName": "TBDES"
-	},
-    {"name": "CK_TBRST",
-    "title": "Reset Trackball Speed",
-    "shortName": "TBRST"
-   }
+    {"name": "OS_DETECTION_TOGGLE", "title": "Toggle OS Detection", "shortName": "OSTOG"},
+    {"name": "AP_GLOB", "title": "Globe / Fn (macOS)", "shortName": "GLOBE"},
+    {"name": "TP_INFO", "title": "Show trackpad info on left OLED (5s)", "shortName": "TPINF"}
 ],
 
 
