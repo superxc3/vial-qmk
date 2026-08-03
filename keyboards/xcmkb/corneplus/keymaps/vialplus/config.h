@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define SPLIT_LED_STATE_ENABLE
 #define SPLIT_POINTING_ENABLE
 #define POINTING_DEVICE_RIGHT
+#define SPLIT_DIGITIZER_ENABLE
+#define DIGITIZER_RIGHT
 //#define SPLIT_HAPTIC_ENABLE
 
 #define SUPER_ALT_TAB_ENABLE	//Enable super alt tab custom keycode(+178).
@@ -50,10 +52,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 //#define USE_MATRIX_I2C
-#ifdef KEYBOARD_crkbd_rev1_legacy
-#    undef USE_I2C
-#    define USE_SERIAL
-#endif
 
 /* Select hand configuration */
 
@@ -63,10 +61,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define EE_HANDS
 
 /* Replug-in issue */
-//#define USB_VBUS_PIN GP19 
+//#define USB_VBUS_PIN GP19
 #define SPLIT_WATCHDOG_ENABLE
 
 #define USE_SERIAL_PD2
+
+/* Split comms: full-duplex UART (RP2040 vendor/PIO driver), replacing the
+ * single-wire soft-serial pin the keyboard.json "split.serial.pin" used to
+ * imply. Pins as given for the right (trackpad) half — same #define is
+ * compiled into both halves' firmware, so TX on one half's physical wire
+ * must land on RX of the other. Unverified: if the split link doesn't come
+ * up, try swapping these two values first. */
+#define SERIAL_USART_FULL_DUPLEX
+#define SERIAL_USART_TX_PIN GP8
+#define SERIAL_USART_RX_PIN GP1
 
 #ifdef RGBLIGHT_ENABLE
 #    undef RGBLED_NUM
@@ -177,7 +185,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #endif
 
-#define OLED_FONT_H "keyboards/crkbd/lib/glcdfont.c"
+#define OLED_FONT_H "keyboards/xcmkb/corneplus/lib/glcdfont.c"
 
 /*Follow for gaming*/
 #define USB_POLLING_INTERVAL_MS 1
@@ -212,15 +220,97 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* PLUS FEATURES */
 
 // ┌─────────────────────────────────────────────────┐
-// │ cirque pinnacle  pimoroni trackball             │
+// │ a z o t e q   i q s 5 x x   t r a c k p a d      │
 // └─────────────────────────────────────────────────┘
 
-/* pointing device */
-#ifdef POINTING_DEVICE_ENABLE
-#define POINTING_DEVICE_ROTATION_180
-#define PIMORONI_TRACKBALL_SCALE 1
-#define POINTING_DEVICE_TASK_THROTTLE_MS 1
-#endif
+/* i2c bus: shared with OLED (I2C1, GP2/GP3), same as sofleplus2 */
+#define I2C_DRIVER I2CD1
+#define I2C1_SDA_PIN GP2
+#define I2C1_SCL_PIN GP3
+#define I2C1_CLOCK_SPEED 1000000
+
+#define AZOTEQ_IQS5XX_TPS43
+#define AZOTEQ_IQS5XX_ROTATION_90
+#define AZOTEQ_IQS5XX_REPORT_RATE 9
+#define POINTING_DEVICE_TASK_THROTTLE_MS (AZOTEQ_IQS5XX_REPORT_RATE + 1)
+#define DIGITIZER_TASK_THROTTLE_MS (AZOTEQ_IQS5XX_REPORT_RATE + 1)
+
+/* Hand-wired IQS5xx lines: GP13 = RDY (comm-window strobe), GP14 = RST
+ * (active-low hard reset). DIGITIZER_MOTION_PIN enables the quantum/digitizer.c
+ * gating hook + pin init; the actual gating logic is the edge-triggered
+ * override in trackpad_rdy_rst.c (one clean read per RDY rising edge, with
+ * automatic fallback to timed polling if RDY goes silent, and RST-based
+ * recovery if the chip wedges). See trackpad_rdy_rst.c for the full writeup —
+ * this is the validated approach from sofleplus2's rdyrst branch, not the
+ * stock level-gate (which reads garbage / hogs the bus on this hardware). */
+#define DIGITIZER_MOTION_PIN GP13
+#define TRACKPAD_RST_PIN GP14
+
+/* azoteq gesture settings, carried over from sofleplus2's TPS43 tuning */
+// https://github.com/qmk/qmk_firmware/blob/master/docs/feature_pointing_device.md#gesture-settings
+#define AZOTEQ_IQS5XX_HOLD_TIME 300
+#define AZOTEQ_IQS5XX_SCROLL_INITIAL_DISTANCE 10
+#define AZOTEQ_IQS5XX_PRESS_AND_HOLD_ENABLE false // Windows PTP handles this natively; hardware gesture conflicts with PTP causing phantom drag
+#define AZOTEQ_IQS5XX_TWO_FINGER_TAP_ENABLE false // Windows PTP handles 2-finger right-click natively; hardware gesture causes double right-click
+#define AZOTEQ_IQS5XX_SCROLL_ENABLE true
+#define AZOTEQ_IQS5XX_ZOOM_ENABLE true
+#define AZOTEQ_IQS5XX_ZOOM_INITIAL_DISTANCE 150
+#define AZOTEQ_IQS5XX_ZOOM_CONSECUTIVE_DISTANCE 80
+#define AZOTEQ_IQS5XX_MIN_STRENGTH 50 // Noise floor: ignore contacts with strength <=50 to prevent phantom touches
+#define AZOTEQ_IQS5XX_SWIPE_X_ENABLE false
+#define AZOTEQ_IQS5XX_SWIPE_Y_ENABLE false
+
+/* NOT YET VERIFIED: ROTATION_90 axis mapping on real hardware. sofleplus2's
+ * ROTATION_180 variant swaps SWIPE_LEFT_KC/RIGHT_KC; its ROTATION_270 variant
+ * instead sets DIGITIZER_SWIPE_X_INVERT. Which (if either) ROTATION_90 needs
+ * is unknown until tested on the corneplus board — start with the natural
+ * mapping below and adjust once you've confirmed cursor/swipe direction. */
+#define DIGITIZER_SWIPE_UP_KC    LCTL(KC_UP)     // macOS Mission Control
+#define DIGITIZER_SWIPE_DOWN_KC  LCTL(KC_DOWN)   // macOS App Exposé
+#define DIGITIZER_SWIPE_LEFT_KC  LCTL(KC_LEFT)   // macOS Previous Desktop
+#define DIGITIZER_SWIPE_RIGHT_KC LCTL(KC_RIGHT)  // macOS Next Desktop
+#define DIGITIZER_SCROLL_INVERT true             // Natural scrolling for macOS
+
+// ┌─────────────────────────────────────────────────┐
+// │ v i a l r g b   i n d i c a t o r s / o l e d    │
+// └─────────────────────────────────────────────────┘
+
+/* Split RPC transactions used by the VialRGB indicator system, per-key colour
+ * live-sync, and the OLED status sync (see keymap.c housekeeping_task_user). */
+#define SPLIT_TRANSACTION_IDS_USER VIALRGB_DIRECT_SYNC, VIALRGB_INDICATOR_SYNC, TP_INFO_SYNC
+#define RPC_M2S_BUFFER_SIZE 112
+
+/* Standardise the VialRGB "Customise" per-key effect with general effects and
+ * layer indicators: track the Vial brightness slider against the max-brightness
+ * ceiling instead of double-scaling against 255. */
+#define VIALRGB_CUSTOMISE_TRACK_MAX_BRIGHTNESS
+
+/* Layer indicator colour renders at this % of the brightness ceiling, so a
+ * steady indicator doesn't out-shine the (usually sub-ceiling) RGB effects.
+ * 100 = full ceiling; lower = dimmer indicators. */
+#define INDICATOR_BRIGHTNESS_PCT 65
+
+/* Shared OLED + RGB sleep timeout (whole minutes on the wire, ms internally).
+ * Runtime-configurable via Vial; 0/never is disallowed to protect the OLED
+ * from burn-in. */
+#define DEFAULT_SLEEP_TIMEOUT_MS  60000    // 1 min
+#define MIN_SLEEP_TIMEOUT_MS      60000    // 1 min
+#define MAX_SLEEP_TIMEOUT_MS      1800000  // 30 min
+#define RGB_MATRIX_SLEEP             // Enable RGB sleep when suspended
+#define RGB_MATRIX_DEFAULT_ON true   // RGB on by default
+#define RGB_MATRIX_TIMEOUT 60000     // boot default for g_rgb_matrix_timeout; overridden at runtime
+
+// ┌─────────────────────────────────────────────────┐
+// │ o s   d e t e c t i o n                          │
+// └─────────────────────────────────────────────────┘
+
+// Reset OS detection when keyboard resets/reconnects
+#define OS_DETECTION_KEYBOARD_RESET
+// Only send one report per OS detection cycle
+#define OS_DETECTION_SINGLE_REPORT
+// Extended timeouts to prevent login loops on Linux systems
+#define OS_DETECTION_INITIAL_TIMEOUT 2500
+#define OS_DETECTION_DEBOUNCE 300
 
 // ┌─────────────────────────────────────────────────┐
 // │ a u d i o                                       │
@@ -241,4 +331,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define AUDIO_STATE_TIMER GPTD4
 #endif
 
-	#define OLED_TIMEOUT 120000
+// core OLED auto-off disabled; keymap owns sleep via g_sleep_timeout (see oled.c)
+#undef OLED_TIMEOUT
+#define OLED_TIMEOUT 0

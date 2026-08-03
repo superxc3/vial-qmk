@@ -1,42 +1,38 @@
-# Corne Keyboard (CRKBD)
+# CornePLUS by XCMKB
 
-Also known (incorrectly) as the `HeliDox`. 
+A split keyboard with 3x6 vertically staggered keys and 3 thumb keys, based on the
+[Corne (crkbd)](https://github.com/foostan/crkbd) design by [foostan](https://github.com/foostan/), modified by
+XCMKB with an Azoteq IQS5xx trackpad (right half), audio, and Vial support. Originally built around the
+Pro Micro (atmega32u4) with a Pimoroni trackball; this variant is populated with an RP2040-based Pro Micro
+replacement instead (converted via QMK's `promicro_to_rp2040_ce` converter), with the trackball swapped for
+the trackpad.
 
-![Crkbd](https://user-images.githubusercontent.com/736191/40575636-6fba63a4-6123-11e8-9ca0-3f990f1f9f4c.jpg)
-
-![Crkbd](https://user-images.githubusercontent.com/736191/40887871-0eead5dc-678a-11e8-9518-e3ad9e5d2bac.png)
-
-A split keyboard with 3x6 vertically staggered keys and 3 thumb keys.
-
-Keyboard Maintainer: [foostan](https://github.com/foostan/) [@foostan](https://twitter.com/foostan)  
-Hardware Supported: Crkbd PCB, Pro Micro  
-Hardware Availability: [PCB & Case Data](https://github.com/foostan/crkbd)
+Keyboard Maintainer: XCMKB
+Hardware Supported: CornePLUS PCB (Pro Micro footprint), RP2040 Pro Micro-compatible module
+Hardware Availability: [Original PCB & Case Data](https://github.com/foostan/crkbd)
 
 Make example for this keyboard (after setting up your build environment):
 
 ```sh
-make crkbd:default
+make xcmkb/corneplus:vialplus
 ```
 
 See the [build environment setup](https://docs.qmk.fm/#/getting_started_build_tools) and the [make instructions](https://docs.qmk.fm/#/getting_started_make_guide) for more information. Brand new to QMK? Start with our [Complete Newbs Guide](https://docs.qmk.fm/#/newbs).
 
 ## Bootloader
 
-The Corne PCBs have a reset button next to the TRRS jack to enter in to the bootloader.
+The RP2040 module supports double-tap-reset to enter the bootloader (see `RP2040_BOOTLOADER_DOUBLE_TAP_RESET` in the keymap's `config.h`). Bootmagic Lite (hold top-left key on the left half, or top-right key on the right half, while plugging in) is also available.
 
-Additionally, if you hold down the "Q" or "P" buttons when plugging in that half of the keyboard (per the default QWERTY layout), this will jump to the bootloader and reset the EEPROM (persistent storage).  This would normally be the very top corner-most position, but due to the breakaway column, it's left at Q and P for compatibility. 
+## RGB Matrix
 
-## RGB Matrix 
-The Corne Keyboard also supports using the RGB Matrix feature, in place of RGB Light.  This provides a better experience when using the keyboard, as it supports a number of per key effects properly.  If you're not using the in switch LEDs, then you may want to pass on doing this. 
-
-In your keymap's `rules.mk` file, add the following: 
+The CornePLUS uses the RGB Matrix feature in place of RGB Light, giving per-key effects. In your keymap's `rules.mk`:
 
 ```make
 RGBLIGHT_ENABLE = no
 RGB_MATRIX_ENABLE = yes
 ```
 
-And in your `config.h` file, add the following:
+And in your `config.h`:
 
 ```c
 
@@ -106,4 +102,4 @@ And in your `config.h` file, add the following:
 #endif
 ```
 
-After this is done, you should be able to use the normal RGB keycodes, but you'll see the RGB Matrix effects in use, giving a much better experience. 
+After this is done, you should be able to use the normal RGB keycodes, but you'll see the RGB Matrix effects in use, giving a much better experience.
