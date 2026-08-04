@@ -23,18 +23,29 @@
 #include "gpio.h"
 #include "util.h"
 
+/* Switches wired to *one* half. */
 #if defined(DIP_SWITCH_PINS)
-#    define NUM_DIP_SWITCHES ARRAY_SIZE(((pin_t[])DIP_SWITCH_PINS))
+#    define NUM_DIP_SWITCH_PINS ARRAY_SIZE(((pin_t[])DIP_SWITCH_PINS))
 #elif defined(DIP_SWITCH_MATRIX_GRID)
 typedef struct matrix_intersection_t {
     uint8_t row;
     uint8_t col;
 } matrix_intersection_t;
-#    define NUM_DIP_SWITCHES ARRAY_SIZE(((matrix_intersection_t[])DIP_SWITCH_MATRIX_GRID))
+#    define NUM_DIP_SWITCH_PINS ARRAY_SIZE(((matrix_intersection_t[])DIP_SWITCH_MATRIX_GRID))
 #endif
 
-#ifndef NUM_DIP_SWITCHES
-#    define NUM_DIP_SWITCHES 0
+#ifndef NUM_DIP_SWITCH_PINS
+#    define NUM_DIP_SWITCH_PINS 0
+#endif
+
+/* With SPLIT_DIP_SWITCH_ENABLE both halves populate the same pin list, so each
+ * half gets its own block of indices: [0, NUM_DIP_SWITCH_PINS) is the left hand,
+ * the block above it is the right hand. Without this the two sides OR into the
+ * same index and become indistinguishable. */
+#if defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
+#    define NUM_DIP_SWITCHES (NUM_DIP_SWITCH_PINS * 2)
+#else
+#    define NUM_DIP_SWITCHES NUM_DIP_SWITCH_PINS
 #endif
 
 bool dip_switch_update_kb(uint8_t index, bool active);
