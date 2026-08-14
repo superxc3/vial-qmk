@@ -95,16 +95,35 @@
 
 
 
-/* KVM OS detection - Linux-optimized extended timeouts */
+/* KVM OS detection */
 
-  // Reset OS detection when keyboard resets/reconnects
-  #define OS_DETECTION_KEYBOARD_RESET
+  /* v5.07h FIELD FIX: OS_DETECTION_KEYBOARD_RESET disabled.
+   * The macro reboots the MCU (soft_reset_keyboard -> mcu_reset) whenever USB
+   * drops out of CONFIGURED -- quantum/os_detection.c:87-99. Every KVM switch,
+   * resume and hub transition is a bus reset, so it fires constantly in the
+   * field and explains all three client reports:
+   *   - Windows "random reboots": the reset itself, by design.
+   *   - Phantom gestures: a reset re-inits digitizer_send_mouse_reports to true
+   *     (digitizer_mouse_fallback.c:212), which is cleared only by the host's
+   *     PTP Input Mode feature report (usb_main.c:307-319). So the board comes
+   *     back in macOS mouse-fallback mode on a Windows host -- tap-to-click,
+   *     zoom, scroll and the swipe layers all live -- until Windows renegotiates.
+   *     shutdown_quantum() also clears only the keyboard report, never the
+   *     digitizer contacts, so a reset mid-touch leaves a stuck PTP contact.
+   *   - Linux never enumerating: the reset lands mid-enumeration and loops until
+   *     the kernel gives up on the port.
+   * Safe to disable: the keymap's mac/win branches read detected_host_os(),
+   * which returns the live detected_os (os_detection.c:179-181) and does not
+   * depend on this macro or on the report callback. */
+  // #define OS_DETECTION_KEYBOARD_RESET
 
   // Only send one report per OS detection cycle
   #define OS_DETECTION_SINGLE_REPORT
 
-  // Extended timeouts to prevent login loops on Linux systems
-  #define OS_DETECTION_INITIAL_TIMEOUT 2500  // Extended from 1400ms to 2500ms for Linux SDDM compatibility
+  // NOTE: OS_DETECTION_INITIAL_TIMEOUT does not exist in QMK -- it appears only
+  // in our own config.h files and has never had any effect. Left in place to
+  // record intent; the actual Linux fix is the disabled macro above.
+  #define OS_DETECTION_INITIAL_TIMEOUT 2500
   #define OS_DETECTION_DEBOUNCE 300          // Extended from 200ms to 300ms for stability
 
 /* Power Management - OLED and RGB sleep/wake */
