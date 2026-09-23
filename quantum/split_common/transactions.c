@@ -863,12 +863,13 @@ static bool dip_switch_handlers_master(matrix_row_t master_matrix[], matrix_row_
     static uint32_t last_update = 0;
     uint32_t        temp_state;
     bool            okay = read_if_checksum_mismatch(GET_DIP_SWITCH_CHECKSUM, GET_DIP_SWITCH_DATA, &last_update, &temp_state, &split_shmem->dip_switch.state, sizeof(temp_state));
+    // Always apply local master DIP state; merge slave state only when available.
+    // Without this, the master's own DIP pin is never processed when the slave is not connected.
+    uint32_t merged = dip_switch_read_state();
     if (okay) {
-        // Merge: local master pin state OR slave synced state
-        // Side without physical disc reads 0 (pullup), so OR gives correct state
-        uint32_t merged = dip_switch_read_state() | split_shmem->dip_switch.state;
-        dip_switch_apply_state(merged);
+        merged |= split_shmem->dip_switch.state;
     }
+    dip_switch_apply_state(merged);
     return okay;
 }
 
@@ -1065,6 +1066,11 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
 };
 
 bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    // DIP switch runs first, before any slave-dependent transaction that may early-return.
+    // This allows the master's local DIP pin to be read even when the slave is not connected.
+#if defined(DIP_SWITCH_ENABLE) && defined(SPLIT_DIP_SWITCH_ENABLE)
+    dip_switch_handlers_master(master_matrix, slave_matrix);
+#endif
     TRANSACTIONS_SLAVE_MATRIX_MASTER();
     TRANSACTIONS_MASTER_MATRIX_MASTER();
     TRANSACTIONS_ENCODERS_MASTER();
@@ -1081,7 +1087,6 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_ST7565_MASTER();
     TRANSACTIONS_POINTING_MASTER();
     TRANSACTIONS_DIGITIZER_MASTER();
-    TRANSACTIONS_DIP_SWITCH_MASTER();
     TRANSACTIONS_WATCHDOG_MASTER();
     TRANSACTIONS_HAPTIC_MASTER();
     TRANSACTIONS_ACTIVITY_MASTER();

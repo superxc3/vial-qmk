@@ -173,6 +173,21 @@ void usb_event_queue_task(void) {
                 break;
             case USB_EVENT_UNCONFIGURED:
                 usb_device_state_set_configuration(false, 0);
+#if defined(DIGITIZER_ENABLE) && defined(POINTING_DEVICE_DRIVER_digitizer)
+                // Deconfigured: the host tore the configuration down, so the PTP
+                // driver is gone. Fall back to mouse mode -- if the host comes
+                // back without re-selecting PTP input mode, a working mouse beats
+                // a digitizer nothing on the host is interpreting.
+                //
+                // Deliberately NOT done on USB_EVENT_RESET. A bus reset fires on
+                // every KVM switch, hub transition and controller re-init, and
+                // dropping to mouse-fallback mode on a Windows host is itself a
+                // documented phantom-gesture trigger -- see the OS_DETECTION_
+                // KEYBOARD_RESET note in keymaps/tps65-509h/config.h. Bus resets
+                // are followed by SET_CONFIGURATION and a fresh Input Mode
+                // feature report, which now drives the latch correctly anyway.
+                digitizer_send_mouse_reports = true;
+#endif
                 break;
             case USB_EVENT_RESET:
                 usb_device_state_set_reset();
@@ -266,6 +281,35 @@ static void set_led_transfer_cb(USBDriver *usbp) {
     }
 }
 
+#if defined(DIGITIZER_ENABLE) && defined(POINTING_DEVICE_DRIVER_digitizer)
+// Data stage of SetReport(Feature, DigitizerConfiguration): [report ID, input mode].
+// Input mode 0x03 = Microsoft Precision Touchpad, 0x00 = mouse. This must be read
+// in the transfer completion callback -- the payload has not arrived yet while
+// usb_requests_hook_cb() is servicing the SETUP stage.
+static uint8_t _Alignas(4) digitizer_cfg_buf[2];
+
+// Diagnostics: last input mode seen from the host. Read from housekeeping, not
+// from this callback -- it runs in USB interrupt context.
+volatile uint8_t digitizer_last_input_mode = 0xFF;
+
+static void digitizer_input_mode_cb(USBDriver *usbp) {
+    usb_control_request_t *setup = (usb_control_request_t *)usbp->setup;
+    uint8_t                mode;
+
+    if (setup->wLength == 2) {
+        if (digitizer_cfg_buf[0] != REPORT_ID_DIGITIZER_CONFIGURATION) {
+            return;
+        }
+        mode = digitizer_cfg_buf[1];
+    } else {
+        mode = digitizer_cfg_buf[0];
+    }
+
+    digitizer_last_input_mode    = mode;
+    digitizer_send_mouse_reports = (mode != 0x03);
+}
+#endif
+
 static bool usb_requests_hook_cb(USBDriver *usbp) {
     usb_control_request_t *setup = (usb_control_request_t *)usbp->setup;
 
@@ -305,16 +349,16 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
 #endif
                                 // Touchpad set feature reports
                                 if ((setup->wValue.hbyte == 0x3) && (setup->wValue.lbyte == REPORT_ID_DIGITIZER_CONFIGURATION)) {
+                                    // Input mode (usage 0x52): the actual mouse-vs-PTP selector.
+#if defined(POINTING_DEVICE_DRIVER_digitizer)
+                                    usbSetupTransfer(usbp, digitizer_cfg_buf, sizeof(digitizer_cfg_buf), digitizer_input_mode_cb);
+#else
                                     usbSetupTransfer(usbp, &(setup->wValue.lbyte), 1, NULL);
+#endif
                                     return true;
                                 } else if ((setup->wValue.hbyte == 0x3) && (setup->wValue.lbyte == REPORT_ID_DIGITIZER_FUNCTION_SWITCH)) {
-                                    uint8_t buffer[64] = {};
-                                    usbReadSetup(usbp, DIGITIZER_IN_EPNUM, buffer);
-#if defined(POINTING_DEVICE_DRIVER_digitizer)
-                                    if (buffer[3] == 0x3) {
-                                        digitizer_send_mouse_reports = false;
-                                    }
-#endif
+                                    // Surface switch (0x57) / button switch (0x58): surface
+                                    // enablement only, NOT a mode selector. Acknowledge and ignore.
                                     usbSetupTransfer(usbp, &(setup->wValue.lbyte), 1, NULL);
                                     return true;
                                 } else if ((setup->wValue.hbyte == 0x3) && (setup->wValue.lbyte == REPORT_ID_DIGITIZER)) {

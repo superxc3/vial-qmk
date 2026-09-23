@@ -431,8 +431,11 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
                 dynamic_keymap_set_buffer(offset, size, &command_data[3]);
             break;
         }
-#if defined(VIAL_ENABLE) && !defined(VIAL_INSECURE)
-        /* As VIA removed bootloader jump entirely, we shall only keep it for secure builds */
+#if defined(VIAL_ENABLE)
+        /* Upstream Vial keeps this for secure builds only. XCMKB builds are VIAL_INSECURE (always
+         * unlocked), and the web app's Updates tab uses this command to restart the board into the
+         * RP2040 bootloader before flashing (vial-web PLAN.md Phase 6 C), so it is compiled in for
+         * insecure builds too; vial_unlocked is 1 there, so the check below always passes. */
         case id_bootloader_jump: {
             /* Until keyboard is unlocked, don't allow jumping to bootloader */
             if (!vial_unlocked)

@@ -378,6 +378,56 @@ enum {
 static uint8_t dance_state[VIAL_TAP_DANCE_ENTRIES];
 static vial_tap_dance_entry_t td_entry;
 
+/* Keycode each dance last resolved to, for the Repeat Key. See
+   vial_tap_dance_resolved_keycode(). */
+static uint16_t dance_resolved_kc[VIAL_TAP_DANCE_ENTRIES];
+
+/* Mirrors the rejections in remember_last_key() (process_repeat_key.c): a dance
+   whose outcome is a layer switch or a bare mod must not become repeatable, and
+   a dance that outputs a repeat key would otherwise recurse. Nested dances are
+   rejected too -- Vial lets a tap dance action be another TD(n), and emitting
+   that would re-enter the state machine, which is the delay this whole
+   mechanism exists to avoid. */
+static bool tap_dance_outcome_repeatable(uint16_t keycode) {
+    switch (keycode) {
+        case KC_NO:
+        case KC_TRANSPARENT:
+        case QK_TAP_DANCE ... QK_TAP_DANCE_MAX:
+        case QK_MOMENTARY ... QK_MOMENTARY_MAX:
+        case QK_TO ... QK_TO_MAX:
+        case QK_TOGGLE_LAYER ... QK_TOGGLE_LAYER_MAX:
+        case QK_LAYER_TAP_TOGGLE ... QK_LAYER_TAP_TOGGLE_MAX:
+        case KC_LCTL ... KC_RGUI:
+        case KC_HYPR:
+        case KC_MEH:
+#ifndef NO_ACTION_ONESHOT
+        case QK_ONE_SHOT_LAYER ... QK_ONE_SHOT_LAYER_MAX:
+        case QK_ONE_SHOT_MOD ... QK_ONE_SHOT_MOD_MAX:
+#endif
+#ifdef TRI_LAYER_ENABLE
+        case QK_TRI_LAYER_LOWER:
+        case QK_TRI_LAYER_UPPER:
+#endif
+#ifdef LAYER_LOCK_ENABLE
+        case QK_LAYER_LOCK:
+#endif
+#ifdef REPEAT_KEY_ENABLE
+        case QK_REPEAT_KEY:
+#ifndef NO_ALT_REPEAT_KEY
+        case QK_ALT_REPEAT_KEY:
+#endif
+#endif
+            return false;
+    }
+    return true;
+}
+
+uint16_t vial_tap_dance_resolved_keycode(uint8_t index) {
+    if (index >= VIAL_TAP_DANCE_ENTRIES)
+        return KC_NO;
+    return dance_resolved_kc[index];
+}
+
 static uint8_t dance_step(tap_dance_state_t *state) {
     if (state->count == 1) {
         if (state->interrupted || !state->pressed) return SINGLE_TAP;
@@ -410,41 +460,45 @@ static void on_dance_finished(tap_dance_state_t *state, void *user_data) {
     uint8_t index = (uintptr_t)user_data;
     if (dynamic_keymap_get_tap_dance(index, &td_entry) != 0)
         return;
+    /* Keycode left held by this dance -- what the Repeat Key should emit. Where
+       a branch taps before holding, it is the held one, so repeating a doubled
+       letter adds one more rather than another pair. */
+    uint16_t resolved = KC_NO;
     dance_state[index] = dance_step(state);
     switch (dance_state[index]) {
         case SINGLE_TAP: {
             if (td_entry.on_tap)
-                vial_keycode_down(td_entry.on_tap);
+                vial_keycode_down(resolved = td_entry.on_tap);
             break;
         }
         case SINGLE_HOLD: {
             if (td_entry.on_hold)
-                vial_keycode_down(td_entry.on_hold);
+                vial_keycode_down(resolved = td_entry.on_hold);
             else if (td_entry.on_tap)
-                vial_keycode_down(td_entry.on_tap);
+                vial_keycode_down(resolved = td_entry.on_tap);
             break;
         }
         case DOUBLE_TAP: {
             if (td_entry.on_double_tap) {
-                vial_keycode_down(td_entry.on_double_tap);
+                vial_keycode_down(resolved = td_entry.on_double_tap);
             } else if (td_entry.on_tap) {
                 vial_keycode_tap(td_entry.on_tap);
-                vial_keycode_down(td_entry.on_tap);
+                vial_keycode_down(resolved = td_entry.on_tap);
             }
             break;
         }
         case DOUBLE_HOLD: {
             if (td_entry.on_tap_hold) {
-                vial_keycode_down(td_entry.on_tap_hold);
+                vial_keycode_down(resolved = td_entry.on_tap_hold);
             } else {
                 if (td_entry.on_tap) {
                     vial_keycode_tap(td_entry.on_tap);
                     if (td_entry.on_hold)
-                        vial_keycode_down(td_entry.on_hold);
+                        vial_keycode_down(resolved = td_entry.on_hold);
                     else
-                        vial_keycode_down(td_entry.on_tap);
+                        vial_keycode_down(resolved = td_entry.on_tap);
                 } else if (td_entry.on_hold) {
-                    vial_keycode_down(td_entry.on_hold);
+                    vial_keycode_down(resolved = td_entry.on_hold);
                 }
             }
             break;
@@ -452,11 +506,18 @@ static void on_dance_finished(tap_dance_state_t *state, void *user_data) {
         case DOUBLE_SINGLE_TAP: {
             if (td_entry.on_tap) {
                 vial_keycode_tap(td_entry.on_tap);
-                vial_keycode_down(td_entry.on_tap);
+                vial_keycode_down(resolved = td_entry.on_tap);
             }
             break;
         }
+        case MORE_TAPS: {
+            /* Nothing is held for 3+ taps; on_dance() already tapped on_tap for
+               each, so that is what repeating should continue. */
+            resolved = td_entry.on_tap;
+            break;
+        }
     }
+    dance_resolved_kc[index] = tap_dance_outcome_repeatable(resolved) ? resolved : KC_NO;
 }
 
 static void on_dance_reset(tap_dance_state_t *state, void *user_data) {

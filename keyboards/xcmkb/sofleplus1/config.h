@@ -1,36 +1,25 @@
 #pragma once
-#include "encoder.c"
 
 
-//Debug Manager//
-//#define DEBUG_ENABLE
-//#define CONSOLE_ENABLE
-#define SERIAL_NUMBER_USE_HARDWARE_ID TRUE    
 
-#define OLED_BRIGHTNESS 100
 #define SPLIT_WPM_ENABLE
 #define SPLIT_LAYER_STATE_ENABLE
 #define SPLIT_LED_STATE_ENABLE
 #define SPLIT_HAPTIC_ENABLE
 #define SPLIT_POINTING_ENABLE
 #define POINTING_DEVICE_RIGHT
-#define SPLIT_DIGITIZER_ENABLE
-#define DIGITIZER_RIGHT
 
 
 
 #ifdef DIP_SWITCH_ENABLE
-
-#define DIP_SWITCH_PINS { GP12 }
-#define SPLIT_DIP_SWITCH_ENABLE
-
+#define DIP_SWITCH_PINS { GP12, GP13, GP14, GP15, GP16 }
 #endif
 
 
 /* key matrix size */
 // Rows are doubled-up
-#define MATRIX_ROWS 10 
-#define MATRIX_COLS 7 /*original 6*/
+#define MATRIX_ROWS 10
+#define MATRIX_COLS 6
 
 
 #define DEBOUNCE 5
@@ -44,93 +33,129 @@
 #define USB_POLLING_INTERVAL_MS 1
 
 
-
 /* To configure amount of time between encoder keyup and keydown; added upon encoder_map; default match with the value of tap_code_delay*/
+// Cannot replace with super alt tab
 #    ifdef ENCODER_MAP_ENABLE
 #define ENCODER_MAP_KEY_DELAY 10
 #    endif
 
-	
-/* Bootmagic Lite: hold top-left (left half) or top-right (right half) while plugging in USB */
-#define BOOTMAGIC_LITE_ROW        0  // left half:  global row 0, col 0
-#define BOOTMAGIC_LITE_COLUMN     0
-#define BOOTMAGIC_LITE_ROW_RIGHT  5  // right half: global row 5, col 0
-#define BOOTMAGIC_LITE_COLUMN_RIGHT 0
 
+    /* NO_DEBUG was defined unconditionally here, which silently killed all
+     * debug output even though rules.mk sets CONSOLE_ENABLE = yes — the
+     * console was linked in but had nothing to say. Guarded the same way
+     * NO_PRINT already was, two lines down. */
+    #if !defined(NO_DEBUG) && !defined(CONSOLE_ENABLE)
+    #define NO_DEBUG
+    #endif // !NO_DEBUG
+    #if !defined(NO_PRINT) && !defined(CONSOLE_ENABLE)
+    #define NO_PRINT
+    #endif // !NO_PRINT
+	
 /* RP2040 boot setting */
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET // Activates the double-tap behavior
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_TIMEOUT 200U // Timeout window in ms in which the double tap can occur.
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_LED GP17 // Specify a optional status led by GPIO number which blinks when entering the bootloader
 
-/* Improved EEPROM storage and wear leveling to prevent keymap loss after replugging */
-/* v3.02 for 16mb. This configuration provides a 4:1 ratio, which is more robust and should offer better wear leveling performance */
+/* EEPROM Driver Configuration https://github.com/vial-kb/vial-gui/issues/158#issuecomment-1535447197*/	
 #define WEAR_LEVELING_LOGICAL_SIZE 32768   // 32KB
 #define WEAR_LEVELING_BACKING_SIZE 131072  // 128KB
 #define DYNAMIC_KEYMAP_EEPROM_MAX_ADDR 32767  // Allow more Vial remaps
 
-// NKRO removed
+#ifdef NKRO_ENABLE
+/* Was FORCE_NKRO, which QMK deprecates (quantum/keyboard.c:527) because it
+ * re-asserts nkro and calls eeconfig_update_keymap() on EVERY boot, inside
+ * keyboard_init() -- i.e. after the USB pull-up is up. NKRO_DEFAULT_ON puts
+ * the same value in the defaults struct instead (quantum/eeconfig.c:100), so
+ * it is written once at eeconfig init rather than re-asserted every boot.
+ *
+ * BEHAVIOUR NOTE: FORCE_NKRO overrode the stored setting on every boot;
+ * NKRO_DEFAULT_ON only supplies the initial value. On a fresh EEPROM the two
+ * are identical. On a board whose stored config already has NKRO off, that
+ * choice now survives a reboot instead of being forced back on -- which is
+ * the intended QMK behaviour and makes the Vial NKRO toggle actually stick. */
+#define NKRO_DEFAULT_ON true
+#endif
 
-// Vial Support (UID moved to rules.mk)
+// Vial Support
+#define VIAL_KEYBOARD_UID {0x12, 0x38, 0x7D, 0x9C, 0x1C, 0x0E, 0x58, 0x43}
 
 #define SUPER_ALT_TAB_ENABLE	//Enable super alt tab custom keycode(+178).
 
 
 /* Maximum of combo, tap dance in vial */
-
-#ifdef VIAL_ENABLE
-#define DYNAMIC_KEYMAP_MACRO_COUNT 32
 #define VIAL_TAP_DANCE_ENTRIES 32
 #define VIAL_COMBO_ENTRIES 32
 #define VIAL_KEY_OVERRIDE_ENTRIES 32
 #define VIAL_USER_ENTRIES 32
-#endif
-
 
 #ifdef CAPS_WORD_ENABLE
 #define BOTH_SHIFTS_TURNS_ON_CAPS_WORD
 #endif
 
-
 #define WS2812_DI_PIN GP0
 
+#ifdef RGBLIGHT_ENABLE
+#define RGBLED_NUM 72
+#define RGBLED_SPLIT { 36, 36 }
+#define RGBLIGHT_SLEEP 			//Turn off LEDs when computer sleeping (+72)
+#define RGBLIGHT_LIMIT_VAL 120  //255 as maximum, 120 as half
+#define RGBLIGHT_HUE_STEP  10
+#define RGBLIGHT_SAT_STEP  17
+#define RGBLIGHT_VAL_STEP  17
 
+#endif
 
 
 #ifdef RGB_MATRIX_ENABLE
-/*RGB signature
 #define RGBLED_NUM 72
 #define RGB_MATRIX_LED_COUNT 72
-#define RGB_MATRIX_SPLIT { 36, 36 }*/
-
-/*RGB standard*/
-
-
-/*RGB end here*/
+#define RGB_MATRIX_SPLIT { 36, 36 }
 #define DRIVER_LED_TOTAL RGBLED_NUM
-#define SPLIT_TRANSPORT_MIRROR //https://github.com/qmk/qmk_firmware/blob/master/docs/config_options.md
-#define RGB_MATRIX_SLEEP
-#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 100  // Max 120. 80 Too Dim. 100
+#define SPLIT_TRANSPORT_MIRROR
+#define RGBLIGHT_LIMIT_VAL 120
+#define RGBLIGHT_HUE_STEP  10
+#define RGBLIGHT_SAT_STEP  17
+#define RGBLIGHT_VAL_STEP  17
+#define RGBLIGHT_SLEEP 			//Turn off LEDs when computer sleeping (+72)
+#define RGB_MATRIX_SLEEP 
+#ifndef RGB_MATRIX_MAXIMUM_BRIGHTNESS
+#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 120
+#endif
 
 //#define VIALRGB_NO_DIRECT					//Save space
 #define RGB_MATRIX_FRAMEBUFFER_EFFECTS 	//This is for solidreactive effect
 #define RGB_MATRIX_KEYPRESSES 			//This is for typing heatmap
 
 // RGB Matrix lighting effect, need to add one by one
-// 2024.11.27 remove redundant effects
+
+/*  RGB Mode mapped for the RGB Matrix system*/
+#define ENABLE_RGB_MODE_PLAIN
+#define ENABLE_RGB_MODE_BREATHE
+#define ENABLE_RGB_MODE_RAINBOW
+#define ENABLE_RGB_MODE_SWIRL
+
+/*  RGB Matrix Effects*/
+
+/* Preferred modes */
+#define ENABLE_RGB_MATRIX_RAINBOW_MOVING_CHEVRON
+#define ENABLE_RGB_MATRIX_BREATHING
+#define ENABLE_RGB_MATRIX_CYCLE_ALL
+
+/* All modes */
 #define ENABLE_RGB_MATRIX_ALPHAS_MODS
 #define ENABLE_RGB_MATRIX_GRADIENT_UP_DOWN
 #define ENABLE_RGB_MATRIX_GRADIENT_LEFT_RIGHT
-#define ENABLE_RGB_MATRIX_BREATHING
+//#define ENABLE_RGB_MATRIX_BREATHING
 #define ENABLE_RGB_MATRIX_BAND_SAT
 #define ENABLE_RGB_MATRIX_BAND_VAL
 #define ENABLE_RGB_MATRIX_BAND_PINWHEEL_SAT
 #define ENABLE_RGB_MATRIX_BAND_PINWHEEL_VAL
 #define ENABLE_RGB_MATRIX_BAND_SPIRAL_SAT
 #define ENABLE_RGB_MATRIX_BAND_SPIRAL_VAL
-#define ENABLE_RGB_MATRIX_CYCLE_ALL
+//#define ENABLE_RGB_MATRIX_CYCLE_ALL
 #define ENABLE_RGB_MATRIX_CYCLE_LEFT_RIGHT
 #define ENABLE_RGB_MATRIX_CYCLE_UP_DOWN
-#define ENABLE_RGB_MATRIX_RAINBOW_MOVING_CHEVRON
+//#define ENABLE_RGB_MATRIX_RAINBOW_MOVING_CHEVRON
 #define ENABLE_RGB_MATRIX_CYCLE_OUT_IN
 #define ENABLE_RGB_MATRIX_CYCLE_OUT_IN_DUAL
 #define ENABLE_RGB_MATRIX_CYCLE_PINWHEEL
@@ -138,7 +163,6 @@
 #define ENABLE_RGB_MATRIX_DUAL_BEACON
 #define ENABLE_RGB_MATRIX_RAINBOW_BEACON
 #define ENABLE_RGB_MATRIX_RAINBOW_PINWHEELS
-#define ENABLE_RGB_MATRIX_FLOWER_BLOOMING
 #define ENABLE_RGB_MATRIX_RAINDROPS
 #define ENABLE_RGB_MATRIX_JELLYBEAN_RAINDROPS
 #define ENABLE_RGB_MATRIX_HUE_BREATHING
@@ -147,17 +171,12 @@
 #define ENABLE_RGB_MATRIX_PIXEL_FRACTAL
 #define ENABLE_RGB_MATRIX_PIXEL_FLOW
 #define ENABLE_RGB_MATRIX_PIXEL_RAIN
-#define ENABLE_RGB_MATRIX_STARLIGHT
-#define ENABLE_RGB_MATRIX_STARLIGHT_DUAL_HUE
-#define ENABLE_RGB_MATRIX_STARLIGHT_DUAL_SAT
-#define ENABLE_RGB_MATRIX_RIVERFLOW
 
 /*These modes don't require any additional defines.*/
 #define ENABLE_RGB_MATRIX_TYPING_HEATMAP
-#define ENABLE_RGB_MATRIX_DIGITAL_RAIN 
+#define ENABLE_RGB_MATRIX_DIGITAL_RAIN
 
-#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_SIMPLE
-//These modes also require the RGB_MATRIX_FRAMEBUFFER_EFFECTS define to be available.
+/*These modes also require the RGB_MATRIX_FRAMEBUFFER_EFFECTS define to be available.*/
 #define ENABLE_RGB_MATRIX_SOLID_REACTIVE_SIMPLE
 #define ENABLE_RGB_MATRIX_SOLID_REACTIVE
 #define ENABLE_RGB_MATRIX_SOLID_REACTIVE_WIDE
@@ -174,11 +193,7 @@
 #endif
 
 
-/* Per-key RGB split sync: send g_direct_mode_colors slave portion (sofleplus2u: 36 LEDs x 3 bytes + 1 start byte = 109, must stay <= RPC_M2S_BUFFER_SIZE) */
-/* VIALRGB_INDICATOR_SYNC: send indicator_config_t (110 bytes) from master to slave */
-/* OLED_SCREEN_B_SYNC: send screen_b widget slots (16 bytes) from master to slave */
-#define SPLIT_TRANSACTION_IDS_USER VIALRGB_DIRECT_SYNC, VIALRGB_INDICATOR_SYNC, OLED_SCREEN_B_SYNC, TP_INFO_SYNC
-#define RPC_M2S_BUFFER_SIZE 112
+
 
 /* oled i2c */
 #define OLED_TIMEOUT 120000

@@ -89,15 +89,20 @@ void dip_switch_init(void) {
 #    if defined(SPLIT_KEYBOARD) && defined(DIP_SWITCH_PINS_RIGHT)
     if (!isLeftHand) {
         const pin_t dip_switch_pad_right[] = DIP_SWITCH_PINS_RIGHT;
-        for (uint8_t i = 0; i < NUM_DIP_SWITCHES; i++) {
+        for (uint8_t i = 0; i < NUM_DIP_SWITCH_PINS; i++) {
             dip_switch_pad[i] = dip_switch_pad_right[i];
         }
     }
 #    endif
-    for (uint8_t i = 0; i < NUM_DIP_SWITCHES; i++) {
+    for (uint8_t i = 0; i < NUM_DIP_SWITCH_PINS; i++) {
         gpio_set_pin_input_high(dip_switch_pad[i]);
     }
+#    if defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
+    // Indices are per-hand and the local pins only cover this half, so the initial
+    // dispatch has to come from the transport once both sides have been merged.
+#    else
     dip_switch_read(true);
+#    endif
 #endif
 #ifdef DIP_SWITCH_MATRIX_GRID
     scan_count = 0;
@@ -122,7 +127,7 @@ void dip_switch_read(bool forced) {
     }
 #endif
 
-    for (uint8_t i = 0; i < NUM_DIP_SWITCHES; i++) {
+    for (uint8_t i = 0; i < NUM_DIP_SWITCH_PINS; i++) {
 #ifdef DIP_SWITCH_PINS
         dip_switch_state[i] = !gpio_read_pin(dip_switch_pad[i]);
 #endif
@@ -151,9 +156,12 @@ void dip_switch_read(bool forced) {
 uint32_t dip_switch_read_state(void) {
     uint32_t state = 0;
 #    ifdef DIP_SWITCH_PINS
-    for (uint8_t i = 0; i < NUM_DIP_SWITCHES; i++) {
+    // Offset by handedness rather than master/slave, so a switch keeps the same
+    // index no matter which half the USB cable is in.
+    const uint8_t offset = isLeftHand ? 0 : NUM_DIP_SWITCH_PINS;
+    for (uint8_t i = 0; i < NUM_DIP_SWITCH_PINS; i++) {
         if (!gpio_read_pin(dip_switch_pad[i])) {
-            state |= (uint32_t)1 << i;
+            state |= (uint32_t)1 << (i + offset);
         }
     }
 #    endif
