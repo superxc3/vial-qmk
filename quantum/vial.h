@@ -99,6 +99,15 @@ typedef struct {
 } vial_tap_dance_entry_t;
 _Static_assert(sizeof(vial_tap_dance_entry_t) == 10, "Unexpected size of the vial_tap_dance_entry_t structure");
 
+/* Keycode the tap dance at `index` last resolved to, i.e. the one left held by
+   on_dance_finished(), or KC_NO if it has not resolved yet or resolved to
+   something that must not be repeated (layer switches, mods, one-shots, the
+   repeat keys themselves).
+
+   Used by the Repeat Key: replaying TD(n) through process_record() would
+   restart the dance's state machine instead of repeating its outcome. */
+uint16_t vial_tap_dance_resolved_keycode(uint8_t index);
+
 #else
 #undef VIAL_TAP_DANCE_ENTRIES
 #define VIAL_TAP_DANCE_ENTRIES 0

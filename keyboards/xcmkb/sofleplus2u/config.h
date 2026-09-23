@@ -174,7 +174,7 @@
 #endif
 
 
-/* Per-key RGB split sync: send g_direct_mode_colors slave portion (29 LEDs x 3 bytes = 87) */
+/* Per-key RGB split sync: send g_direct_mode_colors slave portion (sofleplus2u: 36 LEDs x 3 bytes + 1 start byte = 109, must stay <= RPC_M2S_BUFFER_SIZE) */
 /* VIALRGB_INDICATOR_SYNC: send indicator_config_t (110 bytes) from master to slave */
 /* OLED_SCREEN_B_SYNC: send screen_b widget slots (16 bytes) from master to slave */
 #define SPLIT_TRANSACTION_IDS_USER VIALRGB_DIRECT_SYNC, VIALRGB_INDICATOR_SYNC, OLED_SCREEN_B_SYNC, TP_INFO_SYNC

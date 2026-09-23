@@ -65,6 +65,10 @@ __attribute__((weak)) rgb_t rgb_matrix_hsv_to_rgb(hsv_t hsv) {
 // globals
 rgb_config_t rgb_matrix_config; // TODO: would like to prefix this with g_ for global consistancy, do this in another pr
 uint32_t     g_rgb_timer;
+// Runtime-settable RGB sleep timeout (ms). Defaults to the compile-time
+// RGB_MATRIX_TIMEOUT so behaviour is unchanged unless a keymap overrides it
+// (e.g. from EEPROM / Vial). 0 = never sleep.
+uint32_t     g_rgb_matrix_timeout = RGB_MATRIX_TIMEOUT;
 #ifdef RGB_MATRIX_FRAMEBUFFER_EFFECTS
 uint8_t g_rgb_frame_buffer[MATRIX_ROWS][MATRIX_COLS] = {{0}};
 #endif // RGB_MATRIX_FRAMEBUFFER_EFFECTS
@@ -376,9 +380,7 @@ void rgb_matrix_task(void) {
     // Ideally we would also stop sending zeros to the LED driver PWM buffers
     // while suspended and just do a software shutdown. This is a cheap hack for now.
     bool suspend_backlight = suspend_state ||
-#if RGB_MATRIX_TIMEOUT > 0
-                             (last_input_activity_elapsed() > (uint32_t)RGB_MATRIX_TIMEOUT) ||
-#endif // RGB_MATRIX_TIMEOUT > 0
+                             (g_rgb_matrix_timeout > 0 && last_input_activity_elapsed() > g_rgb_matrix_timeout) ||
                              false;
 
     uint8_t effect = suspend_backlight || !rgb_matrix_config.enable ? 0 : rgb_matrix_config.mode;
