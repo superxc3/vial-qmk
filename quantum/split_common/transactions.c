@@ -863,14 +863,19 @@ static bool dip_switch_handlers_master(matrix_row_t master_matrix[], matrix_row_
     static uint32_t last_update = 0;
     uint32_t        temp_state;
     bool            okay = read_if_checksum_mismatch(GET_DIP_SWITCH_CHECKSUM, GET_DIP_SWITCH_DATA, &last_update, &temp_state, &split_shmem->dip_switch.state, sizeof(temp_state));
-    // Always apply local master DIP state; merge slave state only when available.
-    // Without this, the master's own DIP pin is never processed when the slave is not connected.
-    uint32_t merged = dip_switch_read_state();
+    // The slave's bits arrive in temp_state. Keep the verified value in split_shmem:
+    // read_if_checksum_mismatch() compares the slave's checksum against that copy, and a
+    // checksum error falls back to the last good state. (Before this, the master merged
+    // split_shmem, which nothing on the master ever wrote, so slave-half switches read 0.)
     if (okay) {
-        merged |= split_shmem->dip_switch.state;
+        split_shmem->dip_switch.state = temp_state;
     }
-    dip_switch_apply_state(merged);
+    dip_switch_apply_state(dip_switch_read_state() | split_shmem->dip_switch.state);
     return okay;
+}
+
+void dip_switch_forget_slave(void) {
+    split_shmem->dip_switch.state = 0;
 }
 
 static void dip_switch_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {

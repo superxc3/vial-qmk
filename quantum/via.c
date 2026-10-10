@@ -193,6 +193,14 @@ bool process_record_via(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
 
+// Extra pressed bits for the matrix tester (id_switch_matrix_state), OR'd into
+// matrix_get_row(row): switches that are not on the matrix, e.g. a DIP-switch
+// disc click replayed onto a free key position. Override in keymap.c.
+__attribute__((weak)) matrix_row_t via_switch_matrix_extra_user(uint8_t row) {
+    (void)row;
+    return 0;
+}
+
 // Keyboard level code can override this to handle custom messages from VIA.
 // See raw_hid_receive() implementation.
 // DO NOT call raw_hid_send() in the override function.
@@ -257,7 +265,10 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
 #if ((MATRIX_COLS / 8 + 1) * MATRIX_ROWS <= 28)
                     uint8_t i = 1;
                     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-                        matrix_row_t value = matrix_get_row(row);
+                        /* + switches that are not on the matrix (e.g. a DIP-switch disc
+                         * click replayed onto a free key position), so the matrix
+                         * tester shows them too */
+                        matrix_row_t value = matrix_get_row(row) | via_switch_matrix_extra_user(row);
 #    if (MATRIX_COLS > 24)
                         command_data[i++] = (value >> 24) & 0xFF;
 #    endif
@@ -431,8 +442,11 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
                 dynamic_keymap_set_buffer(offset, size, &command_data[3]);
             break;
         }
-#if defined(VIAL_ENABLE) && !defined(VIAL_INSECURE)
-        /* As VIA removed bootloader jump entirely, we shall only keep it for secure builds */
+#if defined(VIAL_ENABLE)
+        /* Upstream Vial keeps this for secure builds only. XCMKB builds are VIAL_INSECURE (always
+         * unlocked), and the web app's Updates tab uses this command to restart the board into the
+         * RP2040 bootloader before flashing (vial-web PLAN.md Phase 6 C), so it is compiled in for
+         * insecure builds too; vial_unlocked is 1 there, so the check below always passes. */
         case id_bootloader_jump: {
             /* Until keyboard is unlocked, don't allow jumping to bootloader */
             if (!vial_unlocked)

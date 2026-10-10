@@ -3,6 +3,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 #define VIALRGB_PROTOCOL_VERSION 1
 
@@ -13,6 +14,7 @@ enum {
     vialrgb_direct_fastset = 0x42,
     vialrgb_set_indicator_leds = 0x45,
     vialrgb_set_indicator_colors = 0x46,
+    vialrgb_set_indicator_led_colors = 0x48,
     vialrgb_set_trackpad_settings = 0x50,
     vialrgb_set_trackpad_layers   = 0x51,
     vialrgb_set_oled_config       = 0x52,
@@ -28,10 +30,12 @@ enum {
     vialrgb_get_indicator_leds = 0x45,
     vialrgb_get_indicator_colors = 0x46,
     vialrgb_get_direct_colors = 0x47,
+    vialrgb_get_indicator_led_colors = 0x48,
     vialrgb_get_trackpad_settings = 0x50,
     vialrgb_get_trackpad_layers   = 0x51,
     vialrgb_get_oled_config       = 0x52,
     vialrgb_get_power_settings    = 0x53,
+    vialrgb_get_encoder_events    = 0x54,
 };
 
 void vialrgb_get_value(uint8_t *data, uint8_t length);
@@ -82,6 +86,35 @@ void vialrgb_get_indicator_leds_user(uint8_t role_idx, uint8_t *mask_out);
 void vialrgb_set_indicator_leds_user(uint8_t role_idx, const uint8_t *mask_in);
 void vialrgb_get_indicator_colors_user(uint8_t *colors_out);
 void vialrgb_set_indicator_colors_user(const uint8_t *colors_in);
+
+/* Per-LED indicator colours (0x48) -- each LED in a role can have its own colour.
+ * Membership still comes from the 0x45 mask; this only carries colours.
+ *   GET: args[0]=role_idx, args[1]=first LED
+ *        -> args[0]=VIALRGB_INDICATOR_LED_COLORS_MAGIC, args[1]=count (<= 9),
+ *           args[2..]=[r,g,b] x count for LEDs first..first+count-1
+ *   SET: args[0]=role_idx, args[1]=first LED, args[2]=count (<= 9),
+ *        args[3..]=[r,g,b] x count
+ * The GET hook returns false when the keymap does not implement per-LED colours;
+ * the request is then echoed unchanged (args[0] = role_idx, never the magic), which
+ * is how a host tells old firmware apart and falls back to one colour per role.
+ * A 0x46 SET still repaints every LED of each role in that role's colour, so hosts
+ * that only know 0x46 keep their old behaviour. */
+#define VIALRGB_INDICATOR_LED_COLORS_MAGIC 0x49
+#define VIALRGB_INDICATOR_LED_COLORS_MAX   9
+
+/* Indicator masks for LEDs 64-127 (0x45 with role_idx | VIALRGB_INDICATOR_MASK_HI):
+ * same 8-byte LE layout, bit i = LED 64 + i. Handled by the keymap hooks; old keymaps
+ * see role >= 10 and ignore it (SET) or answer zeros (GET), so hosts only use it once
+ * per-LED colours (0x48) are confirmed. Needed on 72-LED boards. */
+#define VIALRGB_INDICATOR_MASK_HI 0x80
+
+/* Encoder activity (0x54), for the matrix tester:
+ *   GET -> args[0]=VIALRGB_ENCODER_EVENTS_MAGIC, args[1]=n encoders (<= 14),
+ *          args[2..]=[ccw_count, cw_count] x n, each a wrapping uint8 turn counter.
+ * Old firmware echoes the request (args[0] = 0). */
+#define VIALRGB_ENCODER_EVENTS_MAGIC 0x45
+bool vialrgb_get_indicator_led_colors_user(uint8_t role_idx, uint8_t first, uint8_t *count_out, uint8_t *rgb_out);
+void vialrgb_set_indicator_led_colors_user(uint8_t role_idx, uint8_t first, uint8_t count, const uint8_t *rgb_in);
 
 #if defined(VIALRGB_ENABLE) && !defined(RGB_MATRIX_ENABLE)
 #error VIALRGB_ENABLE=yes requires RGB_MATRIX_ENABLE=yes

@@ -27,11 +27,18 @@ static void encoder_queue_drain(void) {
     encoder_events.dequeued = encoder_events.enqueued;
 }
 
+static uint8_t encoder_event_counts[NUM_ENCODERS][2];  /* [index][clockwise] */
+
+uint8_t encoder_get_event_count(uint8_t index, bool clockwise) {
+    return index < NUM_ENCODERS ? encoder_event_counts[index][clockwise ? 1 : 0] : 0;
+}
+
 static bool encoder_handle_queue(void) {
     bool    changed = false;
     uint8_t index;
     bool    clockwise;
     while (encoder_dequeue_event(&index, &clockwise)) {
+        if (index < NUM_ENCODERS) encoder_event_counts[index][clockwise ? 1 : 0]++;
 #ifdef ENCODER_MAP_ENABLE
 
         // The delays below cater for Windows and its wonderful requirements.

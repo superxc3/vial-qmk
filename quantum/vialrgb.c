@@ -7,6 +7,9 @@
 #include <string.h>
 #include "rgb_matrix.h"
 #include "vial.h"
+#ifdef ENCODER_ENABLE
+#    include "encoder.h"
+#endif
 
 typedef struct {
     uint16_t vialrgb_id;
@@ -186,6 +189,33 @@ void vialrgb_get_value(uint8_t *data, uint8_t length) {
         vialrgb_get_indicator_colors_user(args);
         break;
     }
+    case vialrgb_get_indicator_led_colors: {
+        /* args[0] = role_idx, args[1] = first LED; see vialrgb.h. Only touch the
+         * reply when the keymap implements it, so old keymaps keep echoing. */
+        uint8_t rgb[VIALRGB_INDICATOR_LED_COLORS_MAX * 3] = {0};
+        uint8_t count = 0;
+        if (vialrgb_get_indicator_led_colors_user(args[0], args[1], &count, rgb)) {
+            if (count > VIALRGB_INDICATOR_LED_COLORS_MAX) count = VIALRGB_INDICATOR_LED_COLORS_MAX;
+            args[0] = VIALRGB_INDICATOR_LED_COLORS_MAGIC;
+            args[1] = count;
+            memcpy(args + 2, rgb, count * 3);
+        }
+        break;
+    }
+    case vialrgb_get_encoder_events: {
+        /* see vialrgb.h: magic, count, then [ccw, cw] turn counters per encoder */
+        memset(args, 0, length - 2);
+        args[0] = VIALRGB_ENCODER_EVENTS_MAGIC;
+#ifdef ENCODER_ENABLE
+        uint8_t n = NUM_ENCODERS > 14 ? 14 : NUM_ENCODERS;
+        args[1]   = n;
+        for (uint8_t i = 0; i < n; i++) {
+            args[2 + i * 2]     = encoder_get_event_count(i, false);
+            args[2 + i * 2 + 1] = encoder_get_event_count(i, true);
+        }
+#endif
+        break;
+    }
     case vialrgb_get_trackpad_settings: {
         memset(args, 0, 9);
         vialrgb_get_trackpad_settings_user(args);
@@ -242,6 +272,12 @@ void vialrgb_set_value(uint8_t *data, uint8_t length) {
         vialrgb_set_indicator_colors_user(args);
         break;
     }
+    case vialrgb_set_indicator_led_colors: {
+        /* args[0] = role_idx, args[1] = first LED, args[2] = count, args[3..] = rgb */
+        uint8_t count = args[2] > VIALRGB_INDICATOR_LED_COLORS_MAX ? VIALRGB_INDICATOR_LED_COLORS_MAX : args[2];
+        vialrgb_set_indicator_led_colors_user(args[0], args[1], count, args + 3);
+        break;
+    }
     case vialrgb_set_trackpad_settings: {
         vialrgb_set_trackpad_settings_user(args);
         break;
@@ -288,6 +324,13 @@ __attribute__((weak)) void vialrgb_get_indicator_colors_user(uint8_t *colors_out
 }
 __attribute__((weak)) void vialrgb_set_indicator_colors_user(const uint8_t *colors_in) {
     (void)colors_in;
+}
+__attribute__((weak)) bool vialrgb_get_indicator_led_colors_user(uint8_t role_idx, uint8_t first, uint8_t *count_out, uint8_t *rgb_out) {
+    (void)role_idx; (void)first; (void)count_out; (void)rgb_out;
+    return false; /* not implemented: request is echoed, host falls back to 0x46 */
+}
+__attribute__((weak)) void vialrgb_set_indicator_led_colors_user(uint8_t role_idx, uint8_t first, uint8_t count, const uint8_t *rgb_in) {
+    (void)role_idx; (void)first; (void)count; (void)rgb_in;
 }
 
 void vialrgb_save(uint8_t *data, uint8_t length) {
