@@ -57,6 +57,9 @@ void dip_switch_read(bool forced);
 
 void dip_switch_init(void);
 void dip_switch_task(void);
+#if defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
+void dip_switch_forget_slave(void); /* master: clear the other half's last switch state */
+#endif
 
 #if defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
 uint32_t dip_switch_read_state(void);
