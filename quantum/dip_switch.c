@@ -21,6 +21,7 @@
 #include "dip_switch.h"
 
 #ifdef SPLIT_KEYBOARD
+#    include "keyboard.h" // is_keyboard_master()
 #    include "split_common/split_util.h"
 #endif
 

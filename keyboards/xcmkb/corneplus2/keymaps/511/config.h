@@ -433,10 +433,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #undef PRODUCT
 #define PRODUCT "CornePLUS2 TPS43 v5.11"
 
-/* v5.11 Bootmagic (no EEPROM erase, see keymap.c): the true top corners -- [0][0]
- * top-left on the left half, [4][0] top-right on the right half. post_config.h only
- * sets its [0][1]/[4][1] defaults when these are not defined. */
+/* v5.11 Bootmagic (no EEPROM erase, see keymap.c): T (left) and Y (right), the inner
+ * top keys [0][5] and [4][5]. They exist in both LAYOUT_split_3x5_3 (36 keys) and
+ * LAYOUT_split_3x6_3 (42 keys), so one firmware serves both -- the outer corners are
+ * missing on 36-key boards. post_config.h only sets its [0][1]/[4][1] defaults when
+ * these are not defined. */
 #define BOOTMAGIC_LITE_ROW          0
-#define BOOTMAGIC_LITE_COLUMN       0
+#define BOOTMAGIC_LITE_COLUMN       5
 #define BOOTMAGIC_LITE_ROW_RIGHT    4
-#define BOOTMAGIC_LITE_COLUMN_RIGHT 0
+#define BOOTMAGIC_LITE_COLUMN_RIGHT 5

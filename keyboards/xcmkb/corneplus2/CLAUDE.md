@@ -245,16 +245,14 @@ see root CLAUDE.md "v5.11 host protocol additions". Not compiled.
 
 ### 2026-10-11 — DIP fix, bootmagic corners, corner layout note
 - Core DIP fix (root CLAUDE.md "Split DIP switch") applies to 510 and 511 alike.
-- Bootmagic (511): `[0][0]` top-left on the left half, `[4][0]` top-right on the right.
-  These are the outer top keys of LAYOUT_split_3x6_3 (42 keys). The `[0][1]`/`[4][1]`
-  defaults in post_config.h are the outer keys of the 36-key LAYOUT_split_3x5_3 instead,
-  where `[0][0]` does not exist. Use `[0][1]`/`[4][1]` only if a board ever runs 3x5_3.
+- Bootmagic (511): hold **T** (`[0][5]`) while plugging into the left half, or **Y**
+  (`[4][5]`) into the right. Inner top keys, present on both 36-key (3x5_3) and 42-key
+  (3x6_3) layouts, so one firmware serves both. (Corner keys were rejected: they do
+  not exist on 36-key boards.)
 - Bootmagic does not erase EEPROM (bootmagic_reset_eeprom() is a no-op in 511 keymap.c).
-- **36-key vs 42-key is a separate firmware build.** 511 is LAYOUT_split_3x6_3 (42), and
-  the Bootmagic corners are compile-time, so a 36-key board (LAYOUT_split_3x5_3) needs its
-  own keymap with `[0][1]`/`[4][1]`. Don't make one build accept both corners: on 42 keys
-  `[0][1]` is the second key (Q on the default layout), so plugging in with Q held would
-  enter the bootloader.
+- **36-key and 42-key share one firmware.** Both layouts contain `[0][5]`/`[4][5]`
+  (Bootmagic keys T/Y). Do not add separate corner-key chords: `[0][1]` on a 42-key
+  board is Q, so a Q-held plug-in would enter the bootloader.
 - Reset layout (vial-web Keymap tab, "Reset layout...") sends VIA 0x06, the firmware's
   `dynamic_keymap_reset()`. It restores layers and encoders only.
 - Work for v5.11 is on local branches (`vial-qmk: feature/v511`, `vial-web:

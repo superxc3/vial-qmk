@@ -55,7 +55,8 @@ See the [build environment setup](https://docs.qmk.fm/#/getting_started_build_to
 
 The RP2040 module supports double-tap-reset to enter the bootloader (`RP2040_BOOTLOADER_DOUBLE_TAP_RESET`
 comes from the `GENERIC_PROMICRO_RP2040` board config this board defaults to). Bootmagic Lite (hold
-top-left key on the left half, or top-right key on the right half, while plugging in) is also available.
+the key while plugging that half in) is also available: T on the left half or Y on the right half in the
+511 keymap (no EEPROM erase); the second key of the top row ([0][1] / [4][1]) in older keymaps.
 
 ## RGB Matrix
 

@@ -1898,8 +1898,8 @@ void suspend_wakeup_init_user(void) {
 #endif
 
 // ==================== Bootmagic: bootloader WITHOUT erasing ====================
-/* v5.11: hold the top outer key -- top-left on the left half, top-right on the right
- * -- while plugging the USB cable into that half, and the board jumps straight to the
+/* v5.11: hold T (left half) or Y (right half) -- [0][5] / [4][5], see config.h --
+ * while plugging the USB cable into that half, and the board jumps straight to the
  * RP2040 UF2 bootloader. Stock Bootmagic also clears EEPROM first (eeconfig_disable());
  * overriding that with a no-op keeps the keymap and every setting.
  *  - A NEWLY BUILT firmware still resets the Vial keymap on its first boot (Vial's
