@@ -29,6 +29,6 @@ OS_DETECTION_ENABLE = yes
 DIP_SWITCH_ENABLE = yes
 
 ########### BOOTMAGIC ###########
-# v5.11: hold top-left (left half) / top-right (right half) while plugging in = bootloader,
+# v5.11: hold T (left half) / Y (right half) while plugging in = bootloader,
 # without erasing EEPROM (bootmagic_reset_eeprom() is a no-op in keymap.c)
 BOOTMAGIC_ENABLE = yes
