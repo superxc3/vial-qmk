@@ -1125,6 +1125,17 @@ static inline bool aurora_render(uint8_t led_min, uint8_t led_max) { return fals
 #define INDICATOR_BRIGHTNESS_PCT 100   // 100 = no change; keymap config.h sets the real value
 #endif
 
+#if defined(VIALRGB_ENABLE) && !defined(VIALRGB_NO_DIRECT)
+/* True when at least one LED is assigned to the role (on either half). */
+static inline bool indicator_role_assigned(uint8_t role) {
+    if (g_indicator_config.role_masks[role]) return true;
+#if RGB_MATRIX_LED_COUNT > 64
+    if (g_indicator_masks_hi[role]) return true;
+#endif
+    return false;
+}
+#endif
+
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     /* Wake-up aurora owns the frame while it plays (layer/caps indicators wait). */
     if (aurora_render(led_min, led_max)) return true;
@@ -1143,6 +1154,12 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 
     bool caps = host_keyboard_led_state().caps_lock;
     uint8_t layer = get_highest_layer(layer_state);
+    /* While an indicator shows (Caps Lock on, or a layer with LEDs assigned), every LED
+     * not assigned to it is dark instead of running the RGB effect, so the indicator
+     * colours stand alone. Base layer with Caps Lock off: the effect runs untouched.
+     * Uses the whole mask, not this half's LEDs, so both halves blank together. */
+    bool showing = (caps && indicator_role_assigned(0)) ||
+                   (layer >= 1 && layer < INDICATOR_NUM_ROLES && indicator_role_assigned(layer));
     /* Each role has a bitmask; multiple roles can share the same LED. */
     for (uint8_t led = led_min; led < led_max; led++) {
         uint8_t r = 0, g = 0, b = 0;
@@ -1164,6 +1181,9 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         }
         if (active) {
             rgb_matrix_set_color(led, SCALE(r), SCALE(g), SCALE(b));
+            set = true;
+        } else if (showing) {
+            rgb_matrix_set_color(led, 0, 0, 0);
             set = true;
         }
     }
