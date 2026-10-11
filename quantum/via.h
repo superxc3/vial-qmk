@@ -17,6 +17,7 @@
 #pragma once
 
 #include "action.h"
+#include "matrix.h" // matrix_row_t, for via_switch_matrix_extra_user()
 
 // Changing the layout options size after release will invalidate EEPROM,
 // but this is something that should be set correctly on initial implementation.
@@ -141,6 +142,7 @@ void via_init(void);
 uint32_t via_get_layout_options(void);
 void     via_set_layout_options(uint32_t value);
 void     via_set_layout_options_kb(uint32_t value);
+matrix_row_t via_switch_matrix_extra_user(uint8_t row);
 
 #if VIA_EEPROM_CUSTOM_CONFIG_SIZE > 0
 uint32_t via_read_custom_config(void *buf, uint32_t offset, uint32_t length);

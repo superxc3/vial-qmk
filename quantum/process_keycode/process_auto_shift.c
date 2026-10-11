@@ -149,6 +149,21 @@ static void autoshift_flush_shift(void) {
     send_keyboard_report();
 }
 
+#ifdef REPEAT_KEY_ENABLE
+/** \brief Tells the Repeat Key that the last key came out shifted
+ *
+ *  The Repeat Key remembers the mods held when a key is pressed, but Auto Shift
+ *  adds Shift later, on timeout or release, so without this the Repeat Key
+ *  replays the unshifted character. Skipped while the Repeat Key is replaying,
+ *  so it cannot rewrite what it is repeating between its press and release.
+ */
+static void autoshift_remember_shift(void) {
+    if (autoshift_flags.lastshifted && !get_repeat_key_count() && autoshift_lastkey == get_last_keycode()) {
+        set_last_mods(get_last_mods() | MOD_BIT(KC_LSFT));
+    }
+}
+#endif
+
 /** \brief Record the press of an autoshiftable key
  *
  *  \return Whether the record should be further processed.
@@ -208,6 +223,9 @@ if (!QS_auto_shift_modifiers) {
             del_mods(MOD_BIT(KC_RSFT));
         }
         // autoshift_shift_state doesn't need to be changed.
+#    ifdef REPEAT_KEY_ENABLE
+        autoshift_remember_shift();
+#    endif
         autoshift_press_user(autoshift_lastkey, autoshift_flags.lastshifted, record);
         return false;
     }
@@ -256,6 +274,9 @@ static void autoshift_end(uint16_t keycode, uint16_t now, bool matrix_trigger, k
         ;
         // clang-format on
         set_autoshift_shift_state(autoshift_lastkey, autoshift_flags.lastshifted);
+#ifdef REPEAT_KEY_ENABLE
+        autoshift_remember_shift();
+#endif
         if (get_mods() & MOD_BIT(KC_LSFT)) {
             autoshift_flags.cancelling_lshift = true;
             del_mods(MOD_BIT(KC_LSFT));
