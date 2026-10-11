@@ -21,6 +21,7 @@
 #include "dip_switch.h"
 
 #ifdef SPLIT_KEYBOARD
+#    include "keyboard.h" // is_keyboard_master()
 #    include "split_common/split_util.h"
 #endif
 
@@ -196,7 +197,16 @@ void dip_switch_apply_state(uint32_t state) {
 
 void dip_switch_task(void) {
 #if defined(SPLIT_KEYBOARD) && defined(SPLIT_DIP_SWITCH_ENABLE)
-    return; // Transport handles DIP switch sync on both halves
+    // The transport drives DIP sync while the other half answers. While it does not,
+    // transport_master_if_connected() only attempts a sync every
+    // SPLIT_CONNECTION_CHECK_TIMEOUT ms, so a short press was sampled rarely and
+    // usually missed. Read this half's own switch every loop instead, and forget the
+    // other half's last state so its held switches release on unplug.
+    if (is_keyboard_master() && !is_transport_connected()) {
+        dip_switch_forget_slave();
+        dip_switch_apply_state(dip_switch_read_state());
+    }
+    return;
 #endif
     dip_switch_read(false);
 }

@@ -859,18 +859,26 @@ static void digitizer_handlers_slave(matrix_row_t master_matrix[], matrix_row_t 
 
 #if defined(DIP_SWITCH_ENABLE) && defined(SPLIT_DIP_SWITCH_ENABLE)
 
+// Last slave DIP state that passed its checksum. The transport receives straight into
+// split_shmem, so after a failed or corrupted read split_shmem holds the bad bytes, and
+// applying those would fire phantom switch presses. Same idea as last_matrix in
+// slave_matrix_handlers_master().
+static uint32_t dip_switch_slave_state = 0;
+
 static bool dip_switch_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
     static uint32_t last_update = 0;
     uint32_t        temp_state;
     bool            okay = read_if_checksum_mismatch(GET_DIP_SWITCH_CHECKSUM, GET_DIP_SWITCH_DATA, &last_update, &temp_state, &split_shmem->dip_switch.state, sizeof(temp_state));
-    // Always apply local master DIP state; merge slave state only when available.
-    // Without this, the master's own DIP pin is never processed when the slave is not connected.
-    uint32_t merged = dip_switch_read_state();
     if (okay) {
-        merged |= split_shmem->dip_switch.state;
+        dip_switch_slave_state = temp_state;
     }
-    dip_switch_apply_state(merged);
+    // Always apply the local switches; on a failed read keep the slave's last good state.
+    dip_switch_apply_state(dip_switch_read_state() | dip_switch_slave_state);
     return okay;
+}
+
+void dip_switch_forget_slave(void) {
+    dip_switch_slave_state = 0;
 }
 
 static void dip_switch_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
