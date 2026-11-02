@@ -60,21 +60,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //#define MASTER_RIGHT
 #define EE_HANDS
 
-/* Replug-in issue. NOTE: on xcmkb/corneplus this was supplied implicitly by
- * the rp2040_ce converter (-DUSB_VBUS_PIN=19U). Dropping CONVERT_TO drops that,
- * so it is declared explicitly here -- same pin, same behaviour. */
-#define USB_VBUS_PIN GP19
+/* 2025 boards (the "2.05 Classic" PCB, xcmkb/crkbd/keymaps/vialplus205-c, the last firmware
+ * known to run on them) do not wire USB VBUS to GP19. With USB_VBUS_PIN defined the core
+ * reads that floating pin as "no USB cable", so the board never enumerates. Left undefined. */
+//#define USB_VBUS_PIN GP19
 #define SPLIT_WATCHDOG_ENABLE
 
 
 /* Split comms: full-duplex UART on the RP2040 vendor/PIO driver, two data
- * conductors in the TRRS -- TX on GP8, RX on GP1 (the stock Corne data pin).
+ * conductors in the TRRS -- TX on GP1, RX on GP8 + PIN_SWAP on this 2.05 PCB (see below).
  * The same #define is compiled into both halves, so one half's TX wire lands
  * on the other half's RX by the cable's own crossover.
- * 2025 PCB: TX stays on GP8 (no disc, so GP8 is not a DIP switch). */
+ * 2025 PCB (2.05 Classic): the data lines are the other way round from vialplus --
+ * TX on GP1, RX on GP8, with SERIAL_USART_PIN_SWAP (serial_vendor.c swaps the PIO pins),
+ * exactly as in xcmkb/crkbd/keymaps/vialplus205-c. No disc, so GP8 is not a DIP switch. */
 #define SERIAL_USART_FULL_DUPLEX
-#define SERIAL_USART_TX_PIN GP8
-#define SERIAL_USART_RX_PIN GP1
+#define SERIAL_USART_TX_PIN GP1
+#define SERIAL_USART_RX_PIN GP8
+#define SERIAL_USART_PIN_SWAP
 
 // ┌─────────────────────────────────────────────────┐
 // │ d i s c   ( 4 - w a y   +   c l i c k )          │
@@ -274,10 +277,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define I2C1_CLOCK_SPEED 1000000
 
 #define AZOTEQ_IQS5XX_TPS43
-/* 2025 PCB keeps the vialplus trackpad angle. The disc PCB needed 270 (90 moved the
- * cursor inverted on both axes there); the 2025 board's mounting is not re-verified
- * on 5.11a -- if the cursor is inverted, switch to ROTATION_270. */
-#define AZOTEQ_IQS5XX_ROTATION_90
+/* 270, as in the 2.05 Classic firmware that ran on this PCB (vialplus205-c) and on the disc
+ * PCB. 90 moved the cursor inverted on both axes (hardware, 2026-11-02). */
+#define AZOTEQ_IQS5XX_ROTATION_270
 #define AZOTEQ_IQS5XX_REPORT_RATE 9
 #define POINTING_DEVICE_TASK_THROTTLE_MS (AZOTEQ_IQS5XX_REPORT_RATE + 1)
 #define DIGITIZER_TASK_THROTTLE_MS (AZOTEQ_IQS5XX_REPORT_RATE + 1)
@@ -327,7 +329,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define AZOTEQ_IQS5XX_CONFIDENCE_GATE
 
 /* Swipe keycodes: hardware swipes are off, and the software swipes follow the
- * cursor direction after rotation, so with a rotation giving correct cursor
+ * cursor direction after rotation, so with ROTATION_270 giving correct cursor
  * motion the natural mapping below applies. */
 #define DIGITIZER_SWIPE_UP_KC    LCTL(KC_UP)     // macOS Mission Control
 #define DIGITIZER_SWIPE_DOWN_KC  LCTL(KC_DOWN)   // macOS App Exposé
@@ -435,6 +437,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * missing on 36-key boards. post_config.h only sets its [0][1]/[4][1] defaults when
  * these are not defined. */
 #define BOOTMAGIC_LITE_ROW          0
-#define BOOTMAGIC_LITE_COLUMN       5
+#define BOOTMAGIC_LITE_COLUMN       0    /* 2025 PCB: left-half columns are reversed, so T (inner) is [0][0] */
 #define BOOTMAGIC_LITE_ROW_RIGHT    4
 #define BOOTMAGIC_LITE_COLUMN_RIGHT 5

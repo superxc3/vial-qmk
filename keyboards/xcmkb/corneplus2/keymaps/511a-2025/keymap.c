@@ -1168,8 +1168,14 @@ bool dip_switch_update_user(uint8_t index, bool active) {
 
 // ==================== Keymaps ====================
 
+/* 2025 ("2.05 Classic") PCB: the left half is wired with its columns in the opposite order
+ * (outer key = matrix col 5, see vial.json and xcmkb/crkbd/keymaps/vialplus205-c). The
+ * layers below are written in physical order, so the left-half columns and thumbs are
+ * mirrored into the matrix here; the right half and the disc keys are untouched. */
+#define LAYOUT_2025(a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32,a33,a34,a35,a36,a37,a38,a39,a40,a41,a42,a43,a44,a45,a46,a47,a48,a49,a50,a51)     LAYOUT_split_3x6_3_disc(a5,a4,a3,a2,a1,a0,a6,a7,a8,a9,a10,a11,a17,a16,a15,a14,a13,a12,a18,a19,a20,a21,a22,a23,a29,a28,a27,a26,a25,a24,a30,a31,a32,a33,a34,a35,a38,a37,a36,a39,a40,a41,a42,a43,a44,a45,a46,a47,a48,a49,a50,a51)
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-  [0] = LAYOUT_split_3x6_3_disc(
+  [0] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
        KC_TAB,    KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                         KC_Y,    KC_U,    KC_I,    KC_O,   KC_P,  KC_BSPC,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1184,7 +1190,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   ),
 
-  [1] = LAYOUT_split_3x6_3_disc(
+  [1] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
        KC_TAB,    KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                         KC_6,    KC_7,    KC_8,    KC_9,    KC_0, KC_BSPC,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1198,7 +1204,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                   _______, _______, _______, _______, _______,               _______, _______, _______, _______, _______
   ),
 
-  [2] = LAYOUT_split_3x6_3_disc(
+  [2] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
        KC_TAB, KC_EXLM,   KC_AT, KC_HASH,  KC_DLR, KC_PERC,                      KC_CIRC, KC_AMPR, KC_ASTR, KC_LPRN, KC_RPRN, KC_BSPC,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1212,7 +1218,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                   _______, _______, _______, _______, _______,               _______, _______, _______, _______, _______
   ),
 
-  [3] = LAYOUT_split_3x6_3_disc(
+  [3] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
     QK_REBOOT, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1226,7 +1232,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                   _______, _______, _______, _______, _______,               _______, _______, _______, _______, _______
   ),
 
-  [4] = LAYOUT_split_3x6_3_disc(
+  [4] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
       XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1240,7 +1246,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,               XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
   ),
 
-  [5] = LAYOUT_split_3x6_3_disc(
+  [5] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
       XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1254,7 +1260,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,               XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
   ),
 
-  [6] = LAYOUT_split_3x6_3_disc(
+  [6] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
       XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1268,7 +1274,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,               XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
   ),
 
-  [7] = LAYOUT_split_3x6_3_disc(
+  [7] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
       XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1282,7 +1288,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,               XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
   ),
 
-  [8] = LAYOUT_split_3x6_3_disc(
+  [8] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
       XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1296,7 +1302,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,               XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
   ),
 
-  [9] = LAYOUT_split_3x6_3_disc(
+  [9] = LAYOUT_2025(
   //,-----------------------------------------------------.                    ,-----------------------------------------------------.
       XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
   //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
@@ -1927,3 +1933,25 @@ void suspend_wakeup_init_user(void) {
  *  - To wipe everything on purpose, use the QK_CLEAR_EEPROM (EE_CLR) key: it resets
  *    EEPROM and reboots, and keeps the EE_HANDS left/right setting. */
 void bootmagic_reset_eeprom(void) {}
+
+/* 2025 ("2.05 Classic") PCB: the left half's LED chain is wired to reversed matrix columns
+ * (LED 9, the inner top key of the left half, is matrix [0][0] here and [0][5] on the current batch). Same
+ * positions and flags as keyboard.json; only the left-half matrix_co changes. Strong
+ * definition: it replaces the weak, generated one for this keymap only. Matches the
+ * rgb_matrix layout of xcmkb/crkbd/rev1/info.json (2.05 Classic). */
+#ifdef RGB_MATRIX_ENABLE
+led_config_t g_led_config = {
+  {
+    { 9, 10, 17, 18, 23, 24, NO_LED },
+    { 8, 11, 16, 19, 22, 25, NO_LED },
+    { 7, 12, 15, 20, 21, 26, NO_LED },
+    { 6, 13, 14, NO_LED, NO_LED, NO_LED, NO_LED },
+    { 51, 50, 45, 44, 37, 36, NO_LED },
+    { 52, 49, 46, 43, 38, 35, NO_LED },
+    { 53, 48, 47, 42, 39, 34, NO_LED },
+    { NO_LED, NO_LED, NO_LED, 41, 40, 33, NO_LED },
+  },
+  { {85, 16}, {50, 13}, {16, 20}, {16, 38}, {50, 48}, {85, 52}, {95, 63}, {85, 39}, {85, 21}, {85, 4}, {68, 2}, {68, 19}, {68, 37}, {80, 58}, {60, 55}, {50, 35}, {50, 13}, {50, 0}, {33, 3}, {33, 20}, {33, 37}, {16, 42}, {16, 24}, {16, 7}, {0, 7}, {0, 24}, {0, 41}, {139, 16}, {174, 13}, {208, 20}, {208, 38}, {174, 48}, {139, 52}, {129, 63}, {139, 39}, {139, 21}, {139, 4}, {156, 2}, {156, 19}, {156, 37}, {144, 58}, {164, 55}, {174, 35}, {174, 13}, {174, 0}, {191, 3}, {191, 20}, {191, 37}, {208, 42}, {208, 24}, {208, 7}, {224, 7}, {224, 24}, {224, 41} },
+  { 2, 2, 2, 2, 2, 2, 1, 4, 4, 4, 4, 4, 4, 1, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 2, 2, 2, 2, 2, 2, 1, 4, 4, 4, 4, 4, 4, 1, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1 },
+};
+#endif
